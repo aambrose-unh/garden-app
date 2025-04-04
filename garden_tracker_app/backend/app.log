@@ -1,0 +1,70 @@
+2025-04-03 19:11:42,174 - app - ERROR - Invalid token error: Subject must be a string
+2025-04-03 19:13:40,674 - app - ERROR - Invalid token error: Subject must be a string
+2025-04-03 19:15:02,643 - app - ERROR - Invalid token error: Subject must be a string
+2025-04-03 19:15:02,643 - app - ERROR - Invalid token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-03 19:15:55,523 - app - ERROR - Invalid token error: Subject must be a string
+2025-04-03 19:15:55,523 - app - ERROR - Invalid token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-03 19:16:51,319 - app - ERROR - Invalid token error: Subject must be a string
+2025-04-03 19:16:51,319 - app - ERROR - Invalid token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-03 19:17:40,058 - app - ERROR - Invalid token error: Subject must be a string
+2025-04-03 19:17:40,059 - app - ERROR - Invalid token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-03 19:18:04,305 - app - ERROR - Invalid token error: Subject must be a string
+2025-04-03 19:18:04,305 - app - ERROR - Invalid token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-03 19:18:11,617 - app - ERROR - Invalid token error: Subject must be a string
+2025-04-03 19:18:11,617 - app - ERROR - Invalid token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-03 19:18:27,758 - app - ERROR - Invalid token error: Subject must be a string
+2025-04-03 19:18:27,758 - app - ERROR - Invalid token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-03 19:18:30,553 - app - INFO - Successfully created JWT token with identity: 1
+2025-04-03 19:18:30,573 - app - INFO - JWT Payload: {'fresh': False, 'iat': 1743722310, 'jti': 'aee4c8fe-5f5e-46a1-8b2d-b636060d52b8', 'type': 'access', 'sub': '1', 'nbf': 1743722310, 'csrf': 'dc8f9ca6-c53e-4dce-8917-cf826a307f69', 'exp': 1743723210, 'user_id': '1', 'email': 'aambro754@gmail.com'}
+2025-04-03 19:18:30,573 - app - INFO - JWT Identity: 1
+2025-04-03 19:18:30,573 - app - INFO - 
+=== Garden Beds Request Received ===
+2025-04-03 19:18:30,573 - app - INFO - Authorization header: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc0MzcyMjMxMCwianRpIjoiYWVlNGM4ZmUtNWY1ZS00NmExLThiMmQtYjYzNjA2MGQ1MmI4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3NDM3MjIzMTAsImNzcmYiOiJkYzhmOWNhNi1jNTNlLTRkY2UtODkxNy1jZjgyNmEzMDdmNjkiLCJleHAiOjE3NDM3MjMyMTAsInVzZXJfaWQiOiIxIiwiZW1haWwiOiJhYW1icm83NTRAZ21haWwuY29tIn0.FLDH4JFY-wKvF-9HHRb_uFS2FrRTB-Q_NGDenFeMcNE
+2025-04-03 19:18:30,573 - app - INFO - Token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-03 19:18:30,573 - app - INFO - Current user ID from token: 1
+2025-04-03 19:18:30,573 - app - INFO - Type of user ID: <class 'str'>
+2025-04-03 19:18:30,576 - app - INFO - === Garden Beds Response ===
+2025-04-03 19:18:30,576 - app - INFO - Found 0 garden beds
+2025-04-03 19:18:30,577 - app - INFO - === End of Request ===
+
+2025-04-03 19:19:58,316 - app - INFO - JWT Payload: {'fresh': False, 'iat': 1743722310, 'jti': 'aee4c8fe-5f5e-46a1-8b2d-b636060d52b8', 'type': 'access', 'sub': '1', 'nbf': 1743722310, 'csrf': 'dc8f9ca6-c53e-4dce-8917-cf826a307f69', 'exp': 1743723210, 'user_id': '1', 'email': 'aambro754@gmail.com'}
+2025-04-03 19:19:58,316 - app - INFO - JWT Identity: 1
+2025-04-03 19:19:58,316 - app - INFO - 
+=== Garden Beds Request Received ===
+2025-04-03 19:19:58,316 - app - INFO - Authorization header: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc0MzcyMjMxMCwianRpIjoiYWVlNGM4ZmUtNWY1ZS00NmExLThiMmQtYjYzNjA2MGQ1MmI4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3NDM3MjIzMTAsImNzcmYiOiJkYzhmOWNhNi1jNTNlLTRkY2UtODkxNy1jZjgyNmEzMDdmNjkiLCJleHAiOjE3NDM3MjMyMTAsInVzZXJfaWQiOiIxIiwiZW1haWwiOiJhYW1icm83NTRAZ21haWwuY29tIn0.FLDH4JFY-wKvF-9HHRb_uFS2FrRTB-Q_NGDenFeMcNE
+2025-04-03 19:19:58,316 - app - INFO - Token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-03 19:19:58,316 - app - INFO - Current user ID from token: 1
+2025-04-03 19:19:58,316 - app - INFO - Type of user ID: <class 'str'>
+2025-04-03 19:19:58,325 - app - INFO - === Garden Beds Response ===
+2025-04-03 19:19:58,325 - app - INFO - Found 0 garden beds
+2025-04-03 19:19:58,325 - app - INFO - === End of Request ===
+
+2025-04-03 19:20:11,312 - app - INFO - JWT Payload: {'fresh': False, 'iat': 1743722310, 'jti': 'aee4c8fe-5f5e-46a1-8b2d-b636060d52b8', 'type': 'access', 'sub': '1', 'nbf': 1743722310, 'csrf': 'dc8f9ca6-c53e-4dce-8917-cf826a307f69', 'exp': 1743723210, 'user_id': '1', 'email': 'aambro754@gmail.com'}
+2025-04-03 19:20:11,312 - app - INFO - JWT Identity: 1
+2025-04-03 19:20:11,312 - app - INFO - 
+=== Garden Beds Request Received ===
+2025-04-03 19:20:11,312 - app - INFO - Authorization header: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc0MzcyMjMxMCwianRpIjoiYWVlNGM4ZmUtNWY1ZS00NmExLThiMmQtYjYzNjA2MGQ1MmI4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3NDM3MjIzMTAsImNzcmYiOiJkYzhmOWNhNi1jNTNlLTRkY2UtODkxNy1jZjgyNmEzMDdmNjkiLCJleHAiOjE3NDM3MjMyMTAsInVzZXJfaWQiOiIxIiwiZW1haWwiOiJhYW1icm83NTRAZ21haWwuY29tIn0.FLDH4JFY-wKvF-9HHRb_uFS2FrRTB-Q_NGDenFeMcNE
+2025-04-03 19:20:11,312 - app - INFO - Token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-03 19:20:11,312 - app - INFO - Current user ID from token: 1
+2025-04-03 19:20:11,312 - app - INFO - Type of user ID: <class 'str'>
+2025-04-03 19:20:11,313 - app - INFO - === Garden Beds Response ===
+2025-04-03 19:20:11,313 - app - INFO - Found 0 garden beds
+2025-04-03 19:20:11,313 - app - INFO - === End of Request ===
+
+2025-04-03 19:20:36,691 - app - INFO - JWT Payload: {'fresh': False, 'iat': 1743722310, 'jti': 'aee4c8fe-5f5e-46a1-8b2d-b636060d52b8', 'type': 'access', 'sub': '1', 'nbf': 1743722310, 'csrf': 'dc8f9ca6-c53e-4dce-8917-cf826a307f69', 'exp': 1743723210, 'user_id': '1', 'email': 'aambro754@gmail.com'}
+2025-04-03 19:20:36,691 - app - INFO - JWT Identity: 1
+2025-04-03 19:20:36,691 - app - ERROR - Error creating garden bed: 'notes' is an invalid keyword argument for GardenBed
+2025-04-03 19:22:35,580 - app - INFO - JWT Payload: {'fresh': False, 'iat': 1743722310, 'jti': 'aee4c8fe-5f5e-46a1-8b2d-b636060d52b8', 'type': 'access', 'sub': '1', 'nbf': 1743722310, 'csrf': 'dc8f9ca6-c53e-4dce-8917-cf826a307f69', 'exp': 1743723210, 'user_id': '1', 'email': 'aambro754@gmail.com'}
+2025-04-03 19:22:35,580 - app - INFO - JWT Identity: 1
+2025-04-03 19:22:35,580 - app - INFO - 
+=== Garden Beds Request Received ===
+2025-04-03 19:22:35,580 - app - INFO - Authorization header: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc0MzcyMjMxMCwianRpIjoiYWVlNGM4ZmUtNWY1ZS00NmExLThiMmQtYjYzNjA2MGQ1MmI4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3NDM3MjIzMTAsImNzcmYiOiJkYzhmOWNhNi1jNTNlLTRkY2UtODkxNy1jZjgyNmEzMDdmNjkiLCJleHAiOjE3NDM3MjMyMTAsInVzZXJfaWQiOiIxIiwiZW1haWwiOiJhYW1icm83NTRAZ21haWwuY29tIn0.FLDH4JFY-wKvF-9HHRb_uFS2FrRTB-Q_NGDenFeMcNE
+2025-04-03 19:22:35,580 - app - INFO - Token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-03 19:22:35,580 - app - INFO - Current user ID from token: 1
+2025-04-03 19:22:35,580 - app - INFO - Type of user ID: <class 'str'>
+2025-04-03 19:22:35,587 - app - ERROR - Error in get_garden_beds: (sqlite3.OperationalError) no such column: garden_bed.notes
+[SQL: SELECT garden_bed.id AS garden_bed_id, garden_bed.user_id AS garden_bed_user_id, garden_bed.name AS garden_bed_name, garden_bed.length AS garden_bed_length, garden_bed.width AS garden_bed_width, garden_bed.unit_measure AS garden_bed_unit_measure, garden_bed.notes AS garden_bed_notes, garden_bed.creation_date AS garden_bed_creation_date, garden_bed.last_modified AS garden_bed_last_modified 
+FROM garden_bed 
+WHERE garden_bed.user_id = ?]
+[parameters: ('1',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
