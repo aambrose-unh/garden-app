@@ -59,10 +59,35 @@ const createGardenBed = async (bedData) => {
   }
 };
 
+const updateGardenBed = async (bedId, bedData) => {
+  const token = authService.getToken();
+  if (!token) {
+    throw new Error('Authentication token not found. Please log in again.');
+  }
+
+  const response = await fetch(`${API_URL}/garden/beds/${bedId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(bedData),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    console.error('Update Garden Bed Error Response:', data);
+    throw new Error(data.message || 'Failed to update garden bed');
+  }
+  console.log('Update Garden Bed Success Response:', data);
+  return data; // Return the updated garden bed data
+};
+
 const gardenService = {
   getGardenBeds,
   createGardenBed,
-  // Add other garden-related API functions here (update, delete)
+  updateGardenBed,
+  // Add other garden-related API functions here (delete)
 };
 
 export default gardenService;

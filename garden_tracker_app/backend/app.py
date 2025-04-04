@@ -2,7 +2,6 @@
 
 import os
 from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 import datetime
@@ -11,6 +10,11 @@ from flask_jwt_extended import create_access_token, JWTManager, jwt_required, ge
 from flask_cors import CORS
 import logging
 from logging.handlers import RotatingFileHandler
+import signal
+
+# Import db and models from models.py [CA]
+# Changed from relative (.models) to absolute (models) to work when running flask run within backend dir [REH]
+from models import db, User, GardenBed, PlantType, Planting
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -42,8 +46,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # JWT Configuration
 # IMPORTANT: Replace this placeholder with a strong, random secret key!
 # Store it securely, preferably as an environment variable (e.g., os.environ.get('JWT_SECRET_KEY')). [SFT]
-app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "super-secret-placeholder-change-me!") 
+app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "super-secret-placeholder-change-me!")
 jwt = JWTManager(app)  # Initialize JWTManager
+
+# Initialize SQLAlchemy with the app
+db.init_app(app)
+
+# # Initialize Flask-Migrate
+# migrate = Migrate(app, db)
 
 # Custom JWT loader to debug token contents
 @jwt.token_in_blocklist_loader
@@ -80,97 +90,26 @@ def missing_token_callback(error_string):
     logger.warning("Unauthorized/Missing token error: %s", error_string)
     return jsonify({"message": "Authorization token is missing or invalid", "error": error_string}), 401
 
-# --- Database Setup ---
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+# # --- Database Initialization (Uses imported db and models) ---
+# with app.app_context():
+#     # Drop existing tables and recreate them (NOTE: Destructive for existing data!) [SFT]
+#     # Consider using Flask-Migrate for schema management in production.
+#     db.drop_all()
+#     db.create_all()
 
-# Initialize database
-with app.app_context():
-    # Drop existing tables and recreate them
-    db.drop_all()
-    db.create_all()
-
-    # Create a test user if none exists (useful for development)
-    if not User.query.first():
-        logger.info("No users found. Creating default test user: test@example.com")
-        test_user = User(
-            email="test@example.com",
-            password_hash=generate_password_hash("password123"),
-            preferred_units="imperial"
-        )
-        db.session.add(test_user)
-        db.session.commit()
-
-# --- Database Models ---
-
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), index=True, unique=True, nullable=False)
-    password_hash = db.Column(db.String(256))  # Store hash, not plain password
-    creation_date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    last_login_at = db.Column(db.DateTime)
-    preferred_units = db.Column(db.String(10), default='imperial')  # 'imperial' or 'metric'
-    garden_beds = db.relationship('GardenBed', backref='owner', lazy='dynamic')
-
-    def __repr__(self):
-        return f'<User {self.email}>'
-
-    def get_id(self):
-        """Return the user ID as a string, as required by Flask-Login."""
-        return str(self.id)
-
-class GardenBed(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    name = db.Column(db.String(100), nullable=False)
-    length = db.Column(db.Float, nullable=False)
-    width = db.Column(db.Float, nullable=False)
-    unit_measure = db.Column(db.String(20), nullable=False)  # feet or meters
-    notes = db.Column(db.Text)  # Optional notes about the bed
-    creation_date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    last_modified = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
-
-    def __repr__(self):
-        return f'<GardenBed {self.name}>'
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'length': self.length,
-            'width': self.width,
-            'unit_measure': self.unit_measure,
-            'notes': self.notes,
-            'creation_date': self.creation_date.isoformat(),
-            'last_modified': self.last_modified.isoformat()
-        }
-
-class PlantType(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    common_name = db.Column(db.String(100), index=True, unique=True, nullable=False)
-    scientific_name = db.Column(db.String(150))
-    description = db.Column(db.Text)
-    avg_height = db.Column(db.Float)  # Consider units (e.g., inches or cm)
-    avg_spread = db.Column(db.Float)  # Consider units
-    rotation_family = db.Column(db.String(50), index=True)  # e.g., Nightshade, Legume
-    notes = db.Column(db.Text)
-    plantings = db.relationship('Planting', backref='plant_type', lazy='dynamic')
-
-    def __repr__(self):
-        return f'<PlantType {self.common_name}>'
-
-class Planting(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    bed_id = db.Column(db.Integer, db.ForeignKey('garden_bed.id'), nullable=False)
-    plant_type_id = db.Column(db.Integer, db.ForeignKey('plant_type.id'), nullable=False)
-    year = db.Column(db.Integer, index=True)
-    season = db.Column(db.String(20))  # e.g., Spring, Summer, Fall, Full Season
-    date_planted = db.Column(db.Date)
-    notes = db.Column(db.Text)
-    is_current = db.Column(db.Boolean, default=True, index=True)
-
-    def __repr__(self):
-        return f'<Planting {self.id} in Bed {self.bed_id}>'
+#     # Create a test user if none exists (useful for development)
+#     if not User.query.first():
+#         logger.info("No users found. Creating default test user: test@example.com")
+#         test_user = User(
+#             email="test@example.com",
+#             password_hash=generate_password_hash("password123"),
+#             preferred_units="imperial"
+#         )
+#         db.session.add(test_user)
+#         db.session.commit()
+#         logger.info("Default test user created.")
+#     else:
+#         logger.info("Database already contains users.")
 
 # --- API Routes (Placeholder) ---
 
@@ -363,7 +302,7 @@ def create_garden_bed():
         db.session.rollback()
         return jsonify({"message": "Failed to create garden bed"}), 500
 
-@app.route('/api/garden-beds/<int:bed_id>', methods=['GET'])
+@app.route('/api/garden/beds/<int:bed_id>', methods=['GET'])
 @jwt_required()  # Protect this route
 def get_bed_details(bed_id):
     current_user_id = get_jwt_identity()
@@ -390,49 +329,52 @@ def get_bed_details(bed_id):
         logger.error("Error retrieving garden bed details: %s", str(e))
         return jsonify({'message': 'Failed to retrieve garden bed details due to server error'}), 500
 
-@app.route('/api/garden-beds/<int:bed_id>', methods=['PUT'])
+@app.route('/api/garden/beds/<int:bed_id>', methods=['PUT'])
 @jwt_required()  # Protect this route
-def update_bed(bed_id):
+def update_garden_bed(bed_id):
     current_user_id = get_jwt_identity()
-    # bed = GardenBed.query.get(bed_id)
-    bed = GardenBed.query.filter_by(id=bed_id, user_id=current_user_id).first()
-
-    if not bed:
-        return jsonify({'message': 'Garden bed not found or access denied'}), 404
-
-    data = request.get_json()
-    if not data:
-        return jsonify({'message': 'No input data provided'}), 400
-
-    # Update fields if provided in the request
-    if 'name' in data: bed.name = data['name']
-    if 'length' in data: bed.length = data['length']
-    if 'width' in data: bed.width = data['width']
-    if 'unit_measure' in data: bed.unit_measure = data['unit_measure']
-    if 'description' in data: bed.description = data['description']
-
-    # Validate required fields (e.g., name cannot be empty if updated)
-    if bed.name == "" or bed.name is None:
-        return jsonify({'message': 'Bed name cannot be empty'}), 400
-
+    logger.info(f"User {current_user_id} attempting to update garden bed ID {bed_id}")
     try:
+        bed = GardenBed.query.get(bed_id)
+        if not bed:
+            logger.warning(f"Garden bed ID {bed_id} not found for update attempt by user {current_user_id}")
+            return jsonify({"message": "Garden bed not found"}), 404
+
+        # Add logging to check user IDs before comparison [REH][SD]
+        logger.debug(f"Checking ownership for bed ID {bed_id}: Bed owner ID = {bed.user_id} (type: {type(bed.user_id)}), Current user ID = {current_user_id} (type: {type(current_user_id)})")
+
+        # Verify the bed belongs to the current user [SFT]
+        # Convert JWT identity (string) to int for comparison with DB ID (int) [REH]
+        try:
+            current_user_id_int = int(current_user_id)
+        except ValueError:
+            logger.error(f"Could not convert current_user_id '{current_user_id}' to int for ownership check.")
+            return jsonify({"message": "Internal server error during authorization"}), 500
+        
+        if bed.user_id != current_user_id_int:
+            logger.warning(f"User {current_user_id_int} forbidden from updating bed ID {bed_id} owned by {bed.user_id}")
+            return jsonify({"message": "Forbidden"}), 403
+
+        data = request.get_json()
+        if not data:
+            return jsonify({"message": "No input data provided"}), 400
+
+        # Update fields if they are provided in the request [IV]
+        bed.name = data.get('name', bed.name)
+        bed.length = data.get('length', bed.length)
+        bed.width = data.get('width', bed.width)
+        bed.unit_measure = data.get('unit_measure', bed.unit_measure)
+        bed.notes = data.get('notes', bed.notes)
+        bed.last_modified = datetime.datetime.now(datetime.timezone.utc) # Update last modified time
+
         db.session.commit()
-        # Return the updated bed details
-        bed_data = {
-            'id': bed.id,
-            'user_id': bed.user_id,
-            'name': bed.name,
-            'length': bed.length,
-            'width': bed.width,
-            'unit_measure': bed.unit_measure,
-            'description': bed.description,
-            'creation_date': bed.creation_date.isoformat()
-        }
-        return jsonify({'message': 'Garden bed updated successfully', 'bed': bed_data}), 200
+        logger.info(f"Garden bed ID {bed_id} updated successfully by user {current_user_id_int}")
+        return jsonify(bed.to_dict()), 200
+
     except Exception as e:
         db.session.rollback()
-        logger.error("Error updating garden bed: %s", str(e))
-        return jsonify({'message': 'Failed to update garden bed due to server error'}), 500
+        logger.error(f"Error updating garden bed ID {bed_id}: {e}", exc_info=True)
+        return jsonify({"message": "Failed to update garden bed", "error": str(e)}), 500
 
 @app.route('/api/garden-beds/<int:bed_id>', methods=['DELETE'])
 @jwt_required()  # Protect this route
@@ -758,8 +700,9 @@ def get_planting_recommendations(bed_id):
 
 if __name__ == '__main__':
     # Ensure app context is available for db operations if needed at startup
-    with app.app_context():
+    # Moved DB init code to run after model definitions to avoid NameError
+    # with app.app_context():
         # You might perform initial db checks or setup here if necessary
-        # db.create_all() # Usually handled by migrations
-        pass
-    app.run(debug=True)
+        # pass
+    logger.info("Starting Flask server...")
+    app.run(debug=True, host='0.0.0.0', port=5000) # Use host='0.0.0.0' to allow external access if needed

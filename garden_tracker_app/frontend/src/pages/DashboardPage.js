@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 import gardenService from '../services/gardenService'; 
@@ -11,8 +11,10 @@ import {
     Alert, 
     List, 
     ListItem, 
-    ListItemText 
+    ListItemText, 
+    IconButton 
 } from '@mui/material'; 
+import EditIcon from '@mui/icons-material/Edit';
 import GardenBedForm from '../components/GardenBedForm';
 
 function DashboardPage() {
@@ -23,6 +25,9 @@ function DashboardPage() {
   const [gardenBeds, setGardenBeds] = useState([]);
   const [bedsLoading, setBedsLoading] = useState(false); 
   const [bedsError, setBedsError] = useState('');
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [bedToEdit, setBedToEdit] = useState(null);
 
   const navigate = useNavigate();
 
@@ -81,8 +86,22 @@ function DashboardPage() {
     navigate('/login');
   };
 
-  const handleBedCreated = (newBed) => {
-    setGardenBeds(prevBeds => [newBed, ...prevBeds]);
+  // Renamed and updated to handle both create and edit [RP] [CA]
+  const handleFormSuccess = (bedData, isEditing) => {
+    if (isEditing) {
+      // Update existing bed in the list
+      setGardenBeds(prevBeds => 
+        prevBeds.map(bed => bed.id === bedData.id ? bedData : bed)
+      );
+    } else {
+      // Add new bed to the beginning of the list
+      setGardenBeds(prevBeds => [bedData, ...prevBeds]);
+    }
+  };
+
+  const handleEditClick = (bed) => {
+    setBedToEdit(bed); 
+    setIsEditModalOpen(true); 
   };
 
   if (userLoading) {
@@ -126,7 +145,9 @@ function DashboardPage() {
                 My Garden Beds
               </Typography>
               
-              <GardenBedForm onSuccess={handleBedCreated} />
+              <GardenBedForm 
+                onSuccess={(bedData, isEditing) => handleFormSuccess(bedData, false)} 
+              />
               
               {bedsLoading && <CircularProgress size={30} sx={{ display: 'block', margin: '20px auto' }}/>}
               
@@ -145,7 +166,13 @@ function DashboardPage() {
                           primary={bed.name}
                           secondary={`Dimensions: ${bed.length || 'N/A'} x ${bed.width || 'N/A'} - Notes: ${bed.notes || 'None'}`}
                         />
-                        {/* TODO: Add buttons/links for View/Edit/Delete */} 
+                        <IconButton 
+                          edge="end" 
+                          aria-label="edit" 
+                          onClick={() => handleEditClick(bed)} 
+                        >
+                          <EditIcon />
+                        </IconButton>
                       </ListItem>
                     ))}
                   </List>
@@ -168,6 +195,14 @@ function DashboardPage() {
           </>
         )}
       </Box>
+
+      <GardenBedForm 
+        open={isEditModalOpen} 
+        handleClose={() => setIsEditModalOpen(false)} 
+        onSuccess={(bedData) => handleFormSuccess(bedData, true)}
+        bedData={bedToEdit} 
+        isEditing={true} 
+      />
     </Container>
   );
 }
