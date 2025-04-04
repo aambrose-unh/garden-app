@@ -63,6 +63,19 @@ class PlantType(db.Model):
     def __repr__(self):
         return f'<PlantType {self.common_name}>'
 
+    # Add serialization method [DRY][CA]
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'common_name': self.common_name,
+            'scientific_name': self.scientific_name,
+            'description': self.description,
+            'avg_height': self.avg_height,
+            'avg_spread': self.avg_spread,
+            'rotation_family': self.rotation_family,
+            'notes': self.notes
+        }
+
 class Planting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     bed_id = db.Column(db.Integer, db.ForeignKey('garden_bed.id'), nullable=False)

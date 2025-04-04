@@ -83,11 +83,41 @@ const updateGardenBed = async (bedId, bedData) => {
   return data; // Return the updated garden bed data
 };
 
+const deleteGardenBed = async (bedId) => {
+  const token = authService.getToken();
+  if (!token) {
+    throw new Error('Authentication token not found. Please log in again.');
+  }
+
+  // Note: Using /api/garden-beds/ based on the backend route definition for DELETE
+  const response = await fetch(`${API_URL}/garden-beds/${bedId}`, { // Corrected path
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({})); // Try to parse error
+    console.error('Delete Garden Bed Error Response:', errorData);
+    throw new Error(errorData.message || 'Failed to delete garden bed');
+  }
+
+  // DELETE requests often return 204 No Content on success, no body to parse
+  if (response.status === 204) {
+    return { message: 'Garden bed deleted successfully' }; // Return success object
+  } else {
+      const data = await response.json(); // Or handle other potential success responses
+      console.log('Delete Garden Bed Success Response (unexpected body):', data);
+      return data; 
+  }
+};
+
 const gardenService = {
   getGardenBeds,
   createGardenBed,
   updateGardenBed,
-  // Add other garden-related API functions here (delete)
+  deleteGardenBed,
 };
 
 export default gardenService;

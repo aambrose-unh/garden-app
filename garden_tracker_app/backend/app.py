@@ -402,18 +402,8 @@ def delete_bed(bed_id):
 def get_all_plant_types():
     try:
         plants = PlantType.query.order_by(PlantType.common_name).all()
-        plants_data = [
-            {
-                'id': plant.id,
-                'common_name': plant.common_name,
-                'scientific_name': plant.scientific_name,
-                'rotation_family': plant.rotation_family,
-                'description': plant.description,
-                'avg_height': plant.avg_height,
-                'avg_spread': plant.avg_spread,
-                'notes': plant.notes
-            } for plant in plants
-        ]
+        # Use the to_dict() method for serialization [DRY] [CA]
+        plants_data = [plant.to_dict() for plant in plants]
         return jsonify(plants_data), 200
     except Exception as e:
         logger.error("Error retrieving plant types: %s", str(e))
@@ -427,17 +417,8 @@ def get_plant_type_details(plant_type_id):
         if not plant:
             return jsonify({'message': 'Plant type not found'}), 404
 
-        plant_data = {
-            'id': plant.id,
-            'common_name': plant.common_name,
-            'scientific_name': plant.scientific_name,
-            'rotation_family': plant.rotation_family,
-            'description': plant.description,
-            'avg_height': plant.avg_height,
-            'avg_spread': plant.avg_spread,
-            'notes': plant.notes
-        }
-        return jsonify(plant_data), 200
+        # Use the to_dict() method for serialization [DRY] [CA]
+        return jsonify(plant.to_dict()), 200
     except Exception as e:
         logger.error("Error retrieving plant type details: %s", str(e))
         return jsonify({'message': 'Failed to retrieve plant type details due to server error'}), 500

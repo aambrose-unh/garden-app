@@ -3,18 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 import gardenService from '../services/gardenService'; 
 import { 
-    Container, 
-    Box, 
-    Typography, 
-    Button, 
-    CircularProgress, 
-    Alert, 
-    List, 
-    ListItem, 
-    ListItemText, 
-    IconButton 
+  Container, 
+  Box, 
+  Typography, 
+  Button, 
+  CircularProgress, 
+  Alert, 
+  List, 
+  ListItem, 
+  ListItemText, 
+  ListItemSecondaryAction, 
+  IconButton, 
+  Dialog, 
+  DialogActions, 
+  DialogContent, 
+  DialogContentText, 
+  DialogTitle
 } from '@mui/material'; 
+import LogoutIcon from '@mui/icons-material/Logout';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import GardenBedForm from '../components/GardenBedForm';
 
 function DashboardPage() {
@@ -26,8 +34,13 @@ function DashboardPage() {
   const [bedsLoading, setBedsLoading] = useState(false); 
   const [bedsError, setBedsError] = useState('');
 
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [bedToEdit, setBedToEdit] = useState(null);
+
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [bedToDeleteId, setBedToDeleteId] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
 
   const navigate = useNavigate();
 
@@ -104,6 +117,45 @@ function DashboardPage() {
     setIsEditModalOpen(true); 
   };
 
+  const handleDeleteClick = (bedId) => {
+    setBedToDeleteId(bedId);
+    setIsDeleteConfirmOpen(true);
+    setDeleteError('');
+  };
+
+  const handleCloseDeleteConfirm = () => {
+    setIsDeleteConfirmOpen(false);
+    setBedToDeleteId(null);
+    setDeleteError(''); // Clear error on close
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!bedToDeleteId) return; // Should not happen, but safeguard
+
+    setDeleteError(''); // Clear previous errors
+    try {
+      await gardenService.deleteGardenBed(bedToDeleteId);
+      // Remove the bed from the state upon successful deletion
+      setGardenBeds(prevBeds => prevBeds.filter(bed => bed.id !== bedToDeleteId));
+      handleCloseDeleteConfirm(); // Close dialog on success
+    } catch (error) {
+      console.error('Failed to delete garden bed:', error);
+      setDeleteError(error.message || 'Could not delete garden bed. Please try again.');
+      // Keep dialog open to show the error
+    }
+  };
+
+  const handleOpenCreateModal = () => {
+    setIsCreateModalOpen(true);
+    setBedToEdit(null); // Ensure no stale edit data
+  };
+
+  const handleCloseModal = () => {
+    setIsCreateModalOpen(false);
+    setIsEditModalOpen(false);
+    setBedToEdit(null);
+  };
+
   if (userLoading) {
     return (
         <Container component="main" maxWidth="md">
@@ -141,9 +193,14 @@ function DashboardPage() {
             </Typography>
             
             <Box sx={{ mt: 0, width: '100%' }}> 
-              <Typography variant="h5" component="h2" gutterBottom>
-                My Garden Beds
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography component="h2" variant="h5">
+                  My Garden Beds
+                </Typography>
+                <Button variant="contained" onClick={handleOpenCreateModal}>
+                  Add New Garden Bed
+                </Button>
+              </Box>
               
               <GardenBedForm 
                 onSuccess={(bedData, isEditing) => handleFormSuccess(bedData, false)} 
@@ -165,14 +222,25 @@ function DashboardPage() {
                         <ListItemText 
                           primary={bed.name}
                           secondary={`Dimensions: ${bed.length || 'N/A'} x ${bed.width || 'N/A'} - Notes: ${bed.notes || 'None'}`}
+                          sx={{ pr: '100px' }}
                         />
-                        <IconButton 
-                          edge="end" 
-                          aria-label="edit" 
-                          onClick={() => handleEditClick(bed)} 
-                        >
-                          <EditIcon />
-                        </IconButton>
+                        <ListItemSecondaryAction>
+                          <IconButton 
+                            edge="end" 
+                            aria-label="edit" 
+                            onClick={() => handleEditClick(bed)} 
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton 
+                            edge="end" 
+                            aria-label="delete" 
+                            onClick={() => handleDeleteClick(bed.id)} 
+                            sx={{ ml: 1 }}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </ListItemSecondaryAction>
                       </ListItem>
                     ))}
                   </List>
@@ -197,12 +265,30 @@ function DashboardPage() {
       </Box>
 
       <GardenBedForm 
-        open={isEditModalOpen} 
-        handleClose={() => setIsEditModalOpen(false)} 
+        open={isCreateModalOpen || isEditModalOpen} 
+        handleClose={handleCloseModal} 
         onSuccess={(bedData) => handleFormSuccess(bedData, true)}
         bedData={bedToEdit} 
-        isEditing={true} 
+        isEditing={isEditModalOpen} 
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={isDeleteConfirmOpen}
+        onClose={handleCloseDeleteConfirm}
+      >
+        <DialogTitle>Delete Garden Bed</DialogTitle>
+        <DialogContent>
+          {deleteError && <Alert severity="error" sx={{ mb: 2 }}>{deleteError}</Alert>}
+          <DialogContentText>
+            Are you sure you want to delete this garden bed? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteConfirm}>Cancel</Button>
+          <Button onClick={handleConfirmDelete} color="error">Delete</Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
