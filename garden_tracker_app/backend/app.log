@@ -429,3 +429,75 @@ WHERE garden_bed.user_id = ?]
 2025-04-04 14:46:46,231 - app - INFO - User 2 attempting to update garden bed ID 3
 2025-04-04 14:46:46,232 - app - DEBUG - Checking ownership for bed ID 3: Bed owner ID = 2 (type: <class 'int'>), Current user ID = 2 (type: <class 'str'>)
 2025-04-04 14:46:46,238 - app - INFO - Garden bed ID 3 updated successfully by user 2
+2025-04-05 18:59:22,035 - app - WARNING - Expired token received
+2025-04-05 18:59:23,996 - app - INFO - Successfully created JWT token with identity: 2
+2025-04-05 18:59:24,018 - app - DEBUG - Checking if token is revoked for identity: 2
+2025-04-05 18:59:24,018 - app - INFO - 
+=== Garden Beds Request Received ===
+2025-04-05 18:59:24,018 - app - INFO - Authorization header: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc0Mzg5Mzk2MywianRpIjoiODE4MTkwNTMtOTZhMi00Mjk4LWFmN2MtNGRjYjZjODAzYzhmIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NDM4OTM5NjMsImNzcmYiOiJmNzM1NTQwOC1iZDlhLTQ2NzEtOTA1Zi0zNjc2YmViOTNiMDMiLCJleHAiOjE3NDM4OTQ4NjMsInVzZXJfaWQiOiIyIiwiZW1haWwiOiJ0ZXN0LXVzZXJAdGVzdC5jb20ifQ.T8r_MrbX6FwLXNaXSQIMsy74-WvKbfbkoZFp8YJzjeo
+2025-04-05 18:59:24,018 - app - INFO - Token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-05 18:59:24,018 - app - INFO - Current user ID from token: 2
+2025-04-05 18:59:24,019 - app - INFO - Type of user ID: <class 'str'>
+2025-04-05 18:59:24,020 - app - INFO - === Garden Beds Response ===
+2025-04-05 18:59:24,020 - app - INFO - Found 3 garden beds
+2025-04-05 18:59:24,021 - app - INFO - === End of Request ===
+
+2025-04-05 19:02:59,531 - app - DEBUG - Checking if token is revoked for identity: 2
+2025-04-05 19:02:59,532 - app - INFO - 
+=== Garden Beds Request Received ===
+2025-04-05 19:02:59,532 - app - INFO - Authorization header: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc0Mzg5Mzk2MywianRpIjoiODE4MTkwNTMtOTZhMi00Mjk4LWFmN2MtNGRjYjZjODAzYzhmIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NDM4OTM5NjMsImNzcmYiOiJmNzM1NTQwOC1iZDlhLTQ2NzEtOTA1Zi0zNjc2YmViOTNiMDMiLCJleHAiOjE3NDM4OTQ4NjMsInVzZXJfaWQiOiIyIiwiZW1haWwiOiJ0ZXN0LXVzZXJAdGVzdC5jb20ifQ.T8r_MrbX6FwLXNaXSQIMsy74-WvKbfbkoZFp8YJzjeo
+2025-04-05 19:02:59,532 - app - INFO - Token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-05 19:02:59,532 - app - INFO - Current user ID from token: 2
+2025-04-05 19:02:59,532 - app - INFO - Type of user ID: <class 'str'>
+2025-04-05 19:02:59,533 - app - INFO - === Garden Beds Response ===
+2025-04-05 19:02:59,534 - app - INFO - Found 3 garden beds
+2025-04-05 19:02:59,534 - app - INFO - === End of Request ===
+
+2025-04-05 19:03:03,112 - app - INFO - Successfully created JWT token with identity: 2
+2025-04-05 19:03:03,135 - app - DEBUG - Checking if token is revoked for identity: 2
+2025-04-05 19:03:03,136 - app - INFO - 
+=== Garden Beds Request Received ===
+2025-04-05 19:03:03,136 - app - INFO - Authorization header: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc0Mzg5NDE4MywianRpIjoiYTAyNWFkY2MtODdkZS00MDFiLWE0MjMtNGU0ODJmY2RlZGE4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NDM4OTQxODMsImNzcmYiOiJlODcxMDQ4Mi0zNjRhLTQ3M2EtOTkwYS1mYjllYTBjOTA4MTEiLCJleHAiOjE3NDM4OTUwODMsInVzZXJfaWQiOiIyIiwiZW1haWwiOiJ0ZXN0LXVzZXJAdGVzdC5jb20ifQ.A-se3wcen6BIJZJ3aIaCXcx_lh7lO2gIyR8dj13JXKQ
+2025-04-05 19:03:03,136 - app - INFO - Token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-05 19:03:03,136 - app - INFO - Current user ID from token: 2
+2025-04-05 19:03:03,136 - app - INFO - Type of user ID: <class 'str'>
+2025-04-05 19:03:03,138 - app - INFO - === Garden Beds Response ===
+2025-04-05 19:03:03,138 - app - INFO - Found 3 garden beds
+2025-04-05 19:03:03,138 - app - INFO - === End of Request ===
+
+2025-04-05 19:03:24,769 - app - DEBUG - Checking if token is revoked for identity: 2
+2025-04-05 19:03:24,769 - app - INFO - 
+=== Garden Beds Request Received ===
+2025-04-05 19:03:24,769 - app - INFO - Authorization header: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc0Mzg5NDE4MywianRpIjoiYTAyNWFkY2MtODdkZS00MDFiLWE0MjMtNGU0ODJmY2RlZGE4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NDM4OTQxODMsImNzcmYiOiJlODcxMDQ4Mi0zNjRhLTQ3M2EtOTkwYS1mYjllYTBjOTA4MTEiLCJleHAiOjE3NDM4OTUwODMsInVzZXJfaWQiOiIyIiwiZW1haWwiOiJ0ZXN0LXVzZXJAdGVzdC5jb20ifQ.A-se3wcen6BIJZJ3aIaCXcx_lh7lO2gIyR8dj13JXKQ
+2025-04-05 19:03:24,769 - app - INFO - Token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-05 19:03:24,769 - app - INFO - Current user ID from token: 2
+2025-04-05 19:03:24,769 - app - INFO - Type of user ID: <class 'str'>
+2025-04-05 19:03:24,770 - app - INFO - === Garden Beds Response ===
+2025-04-05 19:03:24,770 - app - INFO - Found 3 garden beds
+2025-04-05 19:03:24,770 - app - INFO - === End of Request ===
+
+2025-04-05 19:05:25,599 - app - DEBUG - Checking if token is revoked for identity: 2
+2025-04-05 19:05:25,600 - app - INFO - 
+=== Garden Beds Request Received ===
+2025-04-05 19:05:25,600 - app - INFO - Authorization header: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc0Mzg5NDE4MywianRpIjoiYTAyNWFkY2MtODdkZS00MDFiLWE0MjMtNGU0ODJmY2RlZGE4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NDM4OTQxODMsImNzcmYiOiJlODcxMDQ4Mi0zNjRhLTQ3M2EtOTkwYS1mYjllYTBjOTA4MTEiLCJleHAiOjE3NDM4OTUwODMsInVzZXJfaWQiOiIyIiwiZW1haWwiOiJ0ZXN0LXVzZXJAdGVzdC5jb20ifQ.A-se3wcen6BIJZJ3aIaCXcx_lh7lO2gIyR8dj13JXKQ
+2025-04-05 19:05:25,600 - app - INFO - Token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-05 19:05:25,600 - app - INFO - Current user ID from token: 2
+2025-04-05 19:05:25,600 - app - INFO - Type of user ID: <class 'str'>
+2025-04-05 19:05:25,601 - app - INFO - === Garden Beds Response ===
+2025-04-05 19:05:25,601 - app - INFO - Found 3 garden beds
+2025-04-05 19:05:25,601 - app - INFO - === End of Request ===
+
+2025-04-05 19:10:14,294 - app - DEBUG - Checking if token is revoked for identity: 2
+2025-04-05 19:10:14,294 - app - INFO - 
+=== Garden Beds Request Received ===
+2025-04-05 19:10:14,294 - app - INFO - Authorization header: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc0Mzg5NDE4MywianRpIjoiYTAyNWFkY2MtODdkZS00MDFiLWE0MjMtNGU0ODJmY2RlZGE4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NDM4OTQxODMsImNzcmYiOiJlODcxMDQ4Mi0zNjRhLTQ3M2EtOTkwYS1mYjllYTBjOTA4MTEiLCJleHAiOjE3NDM4OTUwODMsInVzZXJfaWQiOiIyIiwiZW1haWwiOiJ0ZXN0LXVzZXJAdGVzdC5jb20ifQ.A-se3wcen6BIJZJ3aIaCXcx_lh7lO2gIyR8dj13JXKQ
+2025-04-05 19:10:14,294 - app - INFO - Token (first 20 chars): eyJhbGciOiJIUzI1NiIs
+2025-04-05 19:10:14,294 - app - INFO - Current user ID from token: 2
+2025-04-05 19:10:14,294 - app - INFO - Type of user ID: <class 'str'>
+2025-04-05 19:10:14,296 - app - INFO - === Garden Beds Response ===
+2025-04-05 19:10:14,296 - app - INFO - Found 3 garden beds
+2025-04-05 19:10:14,296 - app - INFO - === End of Request ===
+
+2025-04-05 19:19:07,077 - app - DEBUG - Received data for new plant: {'common_name': 'test', 'scientific_name': '', 'rotation_family': 'test', 'description': 'test', 'notes': ''}
+2025-04-05 19:19:07,078 - app - WARNING - Create plant request failed: Missing fields: ['scientific_name']
+2025-04-05 19:19:13,042 - app - DEBUG - Received data for new plant: {'common_name': 'test', 'scientific_name': 'test', 'rotation_family': 'test', 'description': 'test', 'notes': ''}

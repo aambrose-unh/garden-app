@@ -409,6 +409,45 @@ def get_all_plant_types():
         logger.error("Error retrieving plant types: %s", str(e))
         return jsonify({'message': 'Failed to retrieve plant types due to server error'}), 500
 
+@app.route('/api/plants', methods=['POST'])
+def create_plant_type():
+    data = request.get_json()
+    logger.debug(f"Received data for new plant: {data}")
+
+    # Basic Input Validation [IV] [REH]
+    required_fields = ['common_name', 'scientific_name']
+    if not data:
+        logger.warning("Create plant request failed: No data received.")
+        return jsonify({'message': 'No input data provided'}), 400
+    if not all(field in data and data[field] for field in required_fields):
+        missing = [field for field in required_fields if field not in data or not data[field]]
+        logger.warning(f"Create plant request failed: Missing fields: {missing}")
+        return jsonify({'message': f'Missing required fields: {", ".join(missing)}'}), 400
+
+    # Check for existing plant (optional, based on requirements - e.g., unique scientific_name)
+    # existing = PlantType.query.filter_by(scientific_name=data['scientific_name']).first()
+    # if existing:
+    #     logger.warning(f"Attempt to create duplicate plant: {data['scientific_name']}")
+    #     return jsonify({'message': 'Plant with this scientific name already exists'}), 409 # Conflict
+
+    try:
+        new_plant = PlantType(
+            common_name=data['common_name'],
+            scientific_name=data['scientific_name'],
+            rotation_family=data.get('rotation_family'), # Use .get for optional fields
+            description=data.get('description'),
+            notes=data.get('notes')
+        )
+        db.session.add(new_plant)
+        db.session.commit()
+        logger.info(f"New plant created: {new_plant.common_name} (ID: {new_plant.id})")
+        # Return the created plant data [ISA]
+        return jsonify(new_plant.to_dict()), 201 # 201 Created
+    except Exception as e:
+        db.session.rollback()
+        logger.error("Error creating new plant type: %s", str(e))
+        return jsonify({'message': 'Failed to create plant type due to server error'}), 500
+
 @app.route('/api/plants/<int:plant_type_id>', methods=['GET'])
 def get_plant_type_details(plant_type_id):
     try:
