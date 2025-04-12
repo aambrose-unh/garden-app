@@ -85,6 +85,21 @@ class Planting(db.Model):
     date_planted = db.Column(db.Date)
     notes = db.Column(db.Text)
     is_current = db.Column(db.Boolean, default=True, index=True)
+    quantity = db.Column(db.String(50)) # Optional, e.g., "5 plants", "2 sq ft"
 
     def __repr__(self):
         return f'<Planting {self.id} in Bed {self.bed_id}>'
+
+    # Add serialization method [DRY][ISA]
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'bed_id': self.bed_id,
+            'plant_type_id': self.plant_type_id,
+            'year': self.year,
+            'season': self.season,
+            'date_planted': self.date_planted.isoformat() if self.date_planted else None,
+            'notes': self.notes,
+            'is_current': self.is_current,
+            'quantity': self.quantity
+        }

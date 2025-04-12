@@ -9,6 +9,7 @@ import {
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import GardenBedDetailsPage from './pages/GardenBedDetailsPage';
 import PlantListPage from './pages/PlantListPage';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material'; 
@@ -63,6 +64,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <PlantListPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/beds/:bedId" 
+            element={
+              <ProtectedRoute>
+                <GardenBedDetailsPage />
               </ProtectedRoute>
             } 
           />

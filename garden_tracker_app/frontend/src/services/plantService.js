@@ -35,6 +35,30 @@ export const getAllPlantTypes = async () => {
     }
 };
 
+/**
+ * Fetches all available plant types.
+ * @returns {Promise<Array>} A promise that resolves to an array of plant type objects.
+ */
+export const getAllPlantTypesNew = async () => {
+  const token = localStorage.getItem('token'); // Assuming token-based auth
+  const response = await fetch(`${API_URL}/plants`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` }) // Conditionally add auth header
+    },
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error("API Error Response (getAllPlantTypes):", errorBody);
+    throw new Error(`Failed to fetch plant types. Status: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data;
+};
+
 // Function to create a new plant type via the API [SF]
 export const createPlantType = async (plantData) => {
   const response = await fetch(`${API_URL}/plants`, {
@@ -63,6 +87,10 @@ export const createPlantType = async (plantData) => {
 
   const data = await response.json();
   return data;
+};
+
+export const deletePlantType = async (id) => {
+  // Implementation... 
 };
 
 // Add more functions here later for getting details, updating, deleting plants

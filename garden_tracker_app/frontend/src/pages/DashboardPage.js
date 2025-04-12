@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import authService from '../services/authService';
 import gardenService from '../services/gardenService'; 
 import { 
@@ -18,7 +18,8 @@ import {
   DialogActions, 
   DialogContent, 
   DialogContentText, 
-  DialogTitle
+  DialogTitle,
+  ListItemButton
 } from '@mui/material'; 
 import LogoutIcon from '@mui/icons-material/Logout';
 import EditIcon from '@mui/icons-material/Edit';
@@ -218,12 +219,17 @@ function DashboardPage() {
                 gardenBeds.length > 0 ? (
                   <List>
                     {gardenBeds.map((bed) => (
-                      <ListItem key={bed.id} divider>
-                        <ListItemText 
-                          primary={bed.name}
-                          secondary={`Dimensions: ${bed.length || 'N/A'} x ${bed.width || 'N/A'} - Notes: ${bed.notes || 'None'}`}
-                          sx={{ pr: '100px' }}
-                        />
+                      <ListItem 
+                        key={bed.id} 
+                        divider 
+                        disablePadding 
+                      >
+                        <ListItemButton component={RouterLink} to={`/beds/${bed.id}`}>
+                          <ListItemText 
+                            primary={bed.name}
+                            secondary={`Dimensions: ${bed.length || 'N/A'} x ${bed.width || 'N/A'} - Notes: ${bed.notes || 'None'}`}
+                          />
+                        </ListItemButton>
                         <ListItemSecondaryAction>
                           <IconButton 
                             edge="end" 

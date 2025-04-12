@@ -40,22 +40,20 @@ CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "http://12
 
 # --- Configuration ---
 # Database Configuration (using environment variable)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///garden_tracker.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL') or 'sqlite:///garden_tracker.db'
+# Use SECRET_KEY from environment variables for better security [SFT]
+# Fallback only for initial development, should not be used in production
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a-fallback-secret-key-replace-me')
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'another-fallback-jwt-secret-replace-me')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# JWT Configuration
-# IMPORTANT: Replace this placeholder with a strong, random secret key!
-# Store it securely, preferably as an environment variable (e.g., os.environ.get('JWT_SECRET_KEY')). [SFT]
-app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "super-secret-placeholder-change-me!")
-jwt = JWTManager(app)  # Initialize JWTManager
+db.init_app(app) # Link SQLAlchemy instance to the app
+# Initialize Flask-Migrate [fix]
+migrate = Migrate(app, db)
 
-# Initialize SQLAlchemy with the app
-db.init_app(app)
+jwt = JWTManager(app) # Initialize JWT Manager
 
-# # Initialize Flask-Migrate
-# migrate = Migrate(app, db)
-
-# Custom JWT loader to debug token contents
+# --- JWT Token Revocation Setup (Example, requires proper storage) ---
 @jwt.token_in_blocklist_loader
 def check_if_token_is_revoked(jwt_header, jwt_payload):
     """Example check for revoked tokens (currently bypassed)."""
@@ -302,7 +300,7 @@ def create_garden_bed():
         db.session.rollback()
         return jsonify({"message": "Failed to create garden bed"}), 500
 
-@app.route('/api/garden/beds/<int:bed_id>', methods=['GET'])
+@app.route('/api/garden-beds/<int:bed_id>', methods=['GET'])
 @jwt_required()  # Protect this route
 def get_bed_details(bed_id):
     current_user_id = get_jwt_identity()
@@ -320,7 +318,7 @@ def get_bed_details(bed_id):
             'length': bed.length,
             'width': bed.width,
             'unit_measure': bed.unit_measure,
-            'description': bed.description,
+            'notes': bed.notes, # Corrected field name
             'creation_date': bed.creation_date.isoformat()
             # TODO: Add planting history here later
         }
@@ -329,7 +327,7 @@ def get_bed_details(bed_id):
         logger.error("Error retrieving garden bed details: %s", str(e))
         return jsonify({'message': 'Failed to retrieve garden bed details due to server error'}), 500
 
-@app.route('/api/garden/beds/<int:bed_id>', methods=['PUT'])
+@app.route('/api/garden-beds/<int:bed_id>', methods=['PUT'])
 @jwt_required()  # Protect this route
 def update_garden_bed(bed_id):
     current_user_id = get_jwt_identity()
@@ -464,6 +462,42 @@ def get_plant_type_details(plant_type_id):
 
 # --- Planting History API Routes ---
 
+@app.route('/api/garden-beds/<int:bed_id>/plantings', methods=['GET'])
+@jwt_required()  # Protect this route
+def get_plantings_for_bed(bed_id):
+    # TODO: Replace with actual user identification from auth token
+    # For now, assume user 1
+    # user_id = 1
+    current_user_id = get_jwt_identity()
+
+    # Check if bed exists and belongs to user
+    bed = GardenBed.query.filter_by(id=bed_id, user_id=current_user_id).first()
+    if not bed:
+        return jsonify({'message': 'Garden bed not found or access denied'}), 404
+
+    try:
+        # Query plantings for the specific bed, order by year/season perhaps?
+        plantings = Planting.query.filter_by(bed_id=bed_id) \
+            .order_by(Planting.year.desc(), Planting.season).all()
+
+        plantings_data = [
+            {
+                'id': p.id,
+                'bed_id': p.bed_id,
+                'plant_type_id': p.plant_type_id,
+                'plant_common_name': p.plant_type.common_name,  # Access related object
+                'year': p.year,
+                'season': p.season,
+                'date_planted': p.date_planted.isoformat() if p.date_planted else None,
+                'notes': p.notes,
+                'is_current': p.is_current
+            } for p in plantings
+        ]
+        return jsonify(plantings_data), 200
+    except Exception as e:
+        logger.error("Error retrieving planting history: %s", str(e))
+        return jsonify({'message': 'Failed to retrieve planting history due to server error'}), 500
+
 @app.route('/api/garden-beds/<int:bed_id>/plantings', methods=['POST'])
 @jwt_required()  # Protect this route
 def add_planting(bed_id):
@@ -534,42 +568,6 @@ def add_planting(bed_id):
         db.session.rollback()
         logger.error("Error adding planting record: %s", str(e))
         return jsonify({'message': 'Failed to add planting record due to server error'}), 500
-
-@app.route('/api/garden-beds/<int:bed_id>/plantings', methods=['GET'])
-@jwt_required()  # Protect this route
-def get_plantings_for_bed(bed_id):
-    # TODO: Replace with actual user identification from auth token
-    # For now, assume user 1
-    # user_id = 1
-    current_user_id = get_jwt_identity()
-
-    # Check if bed exists and belongs to user
-    bed = GardenBed.query.filter_by(id=bed_id, user_id=current_user_id).first()
-    if not bed:
-        return jsonify({'message': 'Garden bed not found or access denied'}), 404
-
-    try:
-        # Query plantings for the specific bed, order by year/season perhaps?
-        plantings = Planting.query.filter_by(bed_id=bed_id) \
-            .order_by(Planting.year.desc(), Planting.season).all()
-
-        plantings_data = [
-            {
-                'id': p.id,
-                'bed_id': p.bed_id,
-                'plant_type_id': p.plant_type_id,
-                'plant_common_name': p.plant_type.common_name,  # Access related object
-                'year': p.year,
-                'season': p.season,
-                'date_planted': p.date_planted.isoformat() if p.date_planted else None,
-                'notes': p.notes,
-                'is_current': p.is_current
-            } for p in plantings
-        ]
-        return jsonify(plantings_data), 200
-    except Exception as e:
-        logger.error("Error retrieving planting history: %s", str(e))
-        return jsonify({'message': 'Failed to retrieve planting history due to server error'}), 500
 
 @app.route('/api/plantings/<int:planting_id>', methods=['PUT'])
 @jwt_required()  # Protect this route
@@ -717,6 +715,58 @@ def get_planting_recommendations(bed_id):
     except Exception as e:
         logger.error("Error generating planting recommendations: %s", str(e))
         return jsonify({'message': 'Failed to generate recommendations due to server error'}), 500
+
+@app.route('/api/beds/<int:bed_id>/plantings', methods=['POST'])
+def add_planting_to_bed(bed_id):
+    # Verify bed exists and belongs to user (if login is required)
+    bed = GardenBed.query.get(bed_id)
+    if not bed:
+        return jsonify({'message': 'Garden bed not found'}), 404
+    # Add user check if implementing authentication: 
+    # if bed.user_id != session.get('user_id'): return jsonify({'message': 'Unauthorized'}), 403
+
+    data = request.get_json()
+    logger.debug(f"Received data for new planting in bed {bed_id}: {data}")
+
+    # Basic Input Validation [IV] [REH]
+    required_fields = ['plant_type_id', 'year'] # Season could be optional or derived
+    if not data:
+        logger.warning(f"Add planting request failed for bed {bed_id}: No data.")
+        return jsonify({'message': 'No input data provided'}), 400
+    if not all(field in data and data[field] for field in required_fields):
+        missing = [field for field in required_fields if field not in data or not data[field]]
+        logger.warning(f"Add planting request failed for bed {bed_id}: Missing fields: {missing}")
+        return jsonify({'message': f'Missing required fields: {", ".join(missing)}'}), 400
+    
+    # Validate plant_type_id exists
+    plant_type = PlantType.query.get(data['plant_type_id'])
+    if not plant_type:
+        logger.warning(f"Add planting request failed for bed {bed_id}: Invalid plant_type_id: {data['plant_type_id']}")
+        return jsonify({'message': 'Invalid plant type ID provided'}), 400
+
+    try:
+        new_planting = Planting(
+            bed_id=bed_id,
+            plant_type_id=data['plant_type_id'],
+            year=data['year'],
+            season=data.get('season'), # Optional
+            date_planted=datetime.datetime.strptime(data['date_planted'], '%Y-%m-%d').date() if data.get('date_planted') else None, # Handle optional date
+            notes=data.get('notes'), # Optional
+            quantity=data.get('quantity'), # Optional
+            is_current=data.get('is_current', True) # Default to True if not provided
+        )
+        db.session.add(new_planting)
+        db.session.commit()
+        logger.info(f"New planting record (ID: {new_planting.id}) added to bed {bed_id}.")
+        return jsonify(new_planting.to_dict()), 201 # [ISA]
+
+    except ValueError as ve: # Handle potential date parsing errors
+        logger.warning(f"Add planting date format error for bed {bed_id}: {str(ve)}")
+        return jsonify({'message': 'Invalid date format. Please use YYYY-MM-DD.'}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error adding planting to bed {bed_id}: {str(e)}")
+        return jsonify({'message': 'Failed to add planting record due to server error'}), 500
 
 if __name__ == '__main__':
     # Ensure app context is available for db operations if needed at startup
