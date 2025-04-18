@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; 
 import { useParams, Link as RouterLink } from 'react-router-dom';
 import {
   Container,
@@ -13,64 +13,50 @@ import {
   ListItem,
   ListItemText,
   Divider,
-  Snackbar, // For feedback
-  Alert as MuiAlert // Alias Alert to avoid conflict if needed, used in Snackbar
+  Snackbar, 
+  Alert as MuiAlert, 
+  IconButton, 
+  Switch, 
+  FormControlLabel 
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import AddIcon from '@mui/icons-material/Add'; // For the button
+import AddIcon from '@mui/icons-material/Add'; 
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { getGardenBedDetails } from '../services/bedService';
-import { getPlantingsForBed, addPlantingToBed } from '../services/plantingService'; // Import add function too
-import AddPlantingForm from '../components/AddPlantingForm'; // Import the form component
+import { 
+  getPlantingsForBed, 
+  addPlantingToBed 
+} from '../services/plantingService'; 
+import { updatePlanting, deletePlanting } from '../services/bedService';
+import AddPlantingForm from '../components/AddPlantingForm'; 
 
 function GardenBedDetailsPage() {
-  const { bedId } = useParams(); // Get bedId from URL parameter
+  const { bedId } = useParams(); 
   const [bedDetails, setBedDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // State for Planting History [AC]
   const [plantingHistory, setPlantingHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState('');
+  const [showActiveOnly, setShowActiveOnly] = useState(false); 
 
-  // State for Add Planting Form Modal
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false); 
+  const [editingPlanting, setEditingPlanting] = useState(null); 
   const [submitError, setSubmitError] = useState('');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState('success'); // 'success' or 'error'
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success'); 
 
-  useEffect(() => {
-    // Renamed inner function for clarity and reuse
-    const fetchBedAndHistoryData = async () => {
-      if (!bedId) return; // Don't fetch if bedId is not available
-
-      setLoading(true);
-      setError('');
-      try {
-        const details = await getGardenBedDetails(bedId);
-        setBedDetails(details);
-        // Fetch history initially
-        await fetchPlantingHistory(); // Call the separate history fetching function
-      } catch (err) {
-        console.error("Failed to fetch garden bed details:", err);
-        setError(err.message || 'Failed to load garden bed data.');
-      } finally {
-        setLoading(false); // Stop loading indicator regardless of history fetch outcome
-      }
-    };
-
-    fetchBedAndHistoryData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bedId]); // Refetch if bedId changes
-
-  // Function to fetch planting history (can be called on load and after adding)
-  const fetchPlantingHistory = async () => {
+  const fetchPlantingHistory = useCallback(async () => {
     if (!bedId) return;
     setHistoryLoading(true);
     setHistoryError('');
     try {
-      const history = await getPlantingsForBed(bedId);
+      console.log(`Fetching plantings for bed ${bedId}, activeOnly: ${showActiveOnly}`);
+      const history = await getPlantingsForBed(bedId, showActiveOnly);
       setPlantingHistory(history);
     } catch (histErr) {
       console.error("Failed to fetch planting history:", histErr);
@@ -78,28 +64,99 @@ function GardenBedDetailsPage() {
     } finally {
       setHistoryLoading(false);
     }
+  }, [bedId, showActiveOnly]);
+
+  useEffect(() => {
+    const fetchBedDetails = async () => {
+      if (!bedId) return;
+
+      setLoading(true);
+      setError('');
+      try {
+        const details = await getGardenBedDetails(bedId);
+        setBedDetails(details);
+      } catch (err) {
+        console.error("Failed to fetch garden bed details:", err);
+        setError(err.message || 'Failed to load garden bed data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBedDetails();
+    fetchPlantingHistory(); 
+  }, [bedId, fetchPlantingHistory]); 
+
+  const handleFilterChange = (event) => {
+    setShowActiveOnly(event.target.checked);
+    fetchPlantingHistory(); 
   };
 
-  // Handler for submitting the new planting form
   const handleAddPlantingSubmit = async (formData) => {
-    setSubmitError(''); // Clear previous errors
+    setSubmitError(''); 
     try {
       const newPlanting = await addPlantingToBed(bedId, formData);
-      setIsAddFormOpen(false); // Close the modal
-      // Show success feedback
-      setSnackbarMessage(`Planting record for ${newPlanting.plant_common_name || 'plant'} added successfully!`);
+      setIsAddFormOpen(false); 
+      setSnackbarMessage(`Planting record added successfully!`);
       setSnackbarSeverity('success');
       setSnackbarOpen(true);
-      // Refresh planting history list [AC]
       await fetchPlantingHistory(); 
     } catch (err) {
       console.error("Failed to add planting record:", err);
       setSubmitError(err.message || 'Failed to add planting record. Please try again.');
-      // Show error feedback (can optionally use snackbar too)
       setSnackbarMessage(err.message || 'Failed to add planting record.');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
-      // Keep the form open if submission fails so user can retry/correct
+    }
+  };
+
+  const handleOpenEditForm = (planting) => {
+    setEditingPlanting(planting); 
+    setIsEditFormOpen(true);     
+    setSubmitError('');         
+  };
+
+  const handleEditPlantingSubmit = async (formData) => {
+    if (!editingPlanting || !editingPlanting.id) {
+        console.error("No planting selected for editing.");
+        setSubmitError("Error: No planting selected for editing.");
+        return;
+    }
+    setSubmitError('');
+    try {
+        await updatePlanting(editingPlanting.id, formData);
+        setIsEditFormOpen(false); 
+        setEditingPlanting(null); 
+        setSnackbarMessage('Planting record updated successfully!');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+        await fetchPlantingHistory(); 
+    } catch (err) {
+        console.error("Failed to update planting record:", err);
+        setSubmitError(err.message || 'Failed to update planting record. Please try again.');
+        setSnackbarMessage(err.message || 'Failed to update planting record.');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
+        // Keep edit form open on error
+    }
+  };
+
+  const handleDeletePlanting = async (plantingId) => {
+    if (!window.confirm("Are you sure you want to delete this planting record?")) {
+      return;
+    }
+
+    try {
+      await deletePlanting(plantingId);
+      setSnackbarMessage('Planting record deleted successfully!');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      await fetchPlantingHistory(); 
+    } catch (err) {
+      console.error("Failed to delete planting record:", err);
+      setSnackbarMessage(err.message || 'Failed to delete planting record.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
     }
   };
 
@@ -110,14 +167,22 @@ function GardenBedDetailsPage() {
     setSnackbarOpen(false);
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString + 'T00:00:00').toLocaleDateString();
+    } catch (e) {
+        console.error("Error formatting date:", dateString, e);
+        return 'Invalid Date';
+    }
+  };
+
   return (
     <> 
-      {console.log('--- Rendering GardenBedDetailsPage ---')}
-      {console.log(`State: loading=${loading}, error=${error}, bedDetails=${!!bedDetails}, historyLoading=${historyLoading}, historyError=${historyError}`)}
       <Container component="main" maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Button 
           component={RouterLink} 
-          to="/dashboard" // Link back to the dashboard or bed list page
+          to="/dashboard" 
           startIcon={<ArrowBackIcon />}
           sx={{ mb: 2 }}
         >
@@ -127,7 +192,7 @@ function GardenBedDetailsPage() {
         {loading && (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 5 }}>
             <CircularProgress /> 
-          </Box> // Ensure Box is closed if it wraps CircularProgress
+          </Box> 
         )}
 
         {error && (
@@ -137,7 +202,6 @@ function GardenBedDetailsPage() {
         )}
 
         {!loading && !error && bedDetails && (
-          console.log('Rendering Paper section (bedDetails exist)') ||
           <Paper sx={{ p: 3, mt: 2 }}>
             <Typography variant="h4" component="h1" gutterBottom>
               {bedDetails.name}
@@ -150,7 +214,7 @@ function GardenBedDetailsPage() {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body1">
-                  <strong>Created:</strong> {new Date(bedDetails.creation_date).toLocaleDateString()}
+                  <strong>Created:</strong> {formatDate(bedDetails.creation_date)}
                 </Typography>
               </Grid>
               {bedDetails.notes && (
@@ -162,24 +226,26 @@ function GardenBedDetailsPage() {
               )}
             </Grid>
 
-            {/* Planting History Section */}
             <Box sx={{ mt: 4 }}>
-              {console.log('Rendering Planting History Box')}
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 0 }}>
                   Planting History
                 </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => setIsAddFormOpen(true)}
-                >
-                  Add Planting
-                </Button>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <FormControlLabel
+                    control={<Switch checked={showActiveOnly} onChange={handleFilterChange} />}
+                    label="Show Active Only"
+                    sx={{ mr: 2 }} 
+                  />
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => setIsAddFormOpen(true)}
+                  >
+                    Add Planting
+                  </Button>
+                </Box>
               </Box>
-              {console.log(`Planting history state: loading=${historyLoading}, error=${historyError}, count=${plantingHistory.length}`)}
-              
-              {/* Planting History Display */}
               {historyLoading && <CircularProgress size={24} sx={{ mt: 2 }} />}
               {historyError && <Alert severity="error" sx={{ mt: 2 }}>{historyError}</Alert>}
               {!historyLoading && !historyError && (
@@ -187,21 +253,36 @@ function GardenBedDetailsPage() {
                   <List dense sx={{ mt: 1 }}>
                     {plantingHistory.map((planting, index) => (
                       <React.Fragment key={planting.id}>
-                        <ListItem>
+                        <ListItem 
+                          secondaryAction={
+                            <>
+                              <IconButton edge="end" aria-label="edit" onClick={() => handleOpenEditForm(planting)} sx={{ mr: 0.5 }}>
+                                <EditIcon />
+                              </IconButton>
+                              <IconButton edge="end" aria-label="delete" onClick={() => handleDeletePlanting(planting.id)}>
+                                <DeleteIcon />
+                              </IconButton>
+                            </>
+                          }
+                        >
                           <ListItemText 
-                            primary={`${planting.plant_common_name} (${planting.year} ${planting.season || ''})`}
-                            secondary={`Planted: ${planting.date_planted ? new Date(planting.date_planted + 'T00:00:00').toLocaleDateString() : 'N/A'} ${planting.notes ? '- ' + planting.notes : ''} ${planting.quantity ? '- Qty: ' + planting.quantity : ''}`}
+                            primary={`${planting.plant_common_name || 'Unknown Plant'} (${planting.year} ${planting.season || ''})`}
+                            secondary={
+                                `Planted: ${formatDate(planting.date_planted)}` + 
+                                `${planting.expected_harvest_date ? ' | Expected Harvest: ' + formatDate(planting.expected_harvest_date) : ''}` + 
+                                `${planting.quantity ? ' | Qty: ' + planting.quantity : ''}` + 
+                                `${planting.notes ? ' | Notes: ' + planting.notes : ''}`
+                            }
                             primaryTypographyProps={{ fontWeight: 'medium' }}
                           />
-                          {/* TODO: Add Edit/Delete Icons here */}
                         </ListItem>
                         {index < plantingHistory.length - 1 && <Divider component="li" />}
                       </React.Fragment>
                     ))}
                   </List>
                 ) : (
-                  <Typography variant="body2" sx={{ mt: 2 }}>
-                    No planting history recorded for this bed yet.
+                  <Typography sx={{ mt: 2, fontStyle: 'italic' }}>
+                    {showActiveOnly ? 'No active plantings found for this period.' : 'No planting history recorded for this bed yet.'}
                   </Typography>
                 )
               )}
@@ -209,39 +290,38 @@ function GardenBedDetailsPage() {
           </Paper>
         )}
 
-        {!loading && !error && !bedDetails && (
-           <Typography sx={{ mt: 2 }}>Could not load bed details.</Typography>
+        {isAddFormOpen && (
+          <AddPlantingForm
+            open={isAddFormOpen}
+            onClose={() => setIsAddFormOpen(false)}
+            onSubmit={handleAddPlantingSubmit}
+            initialData={{ bed_id: bedId }} 
+            error={submitError} 
+          />
         )}
-      </Container>
-      
-      {/* Add Planting Form Modal */}
-      <AddPlantingForm
-        open={isAddFormOpen}
-        onClose={() => {
-          setIsAddFormOpen(false);
-          setSubmitError(''); // Clear error when closing manually
-        }}
-        onSubmit={handleAddPlantingSubmit}
-        bedId={bedId} 
-      />
 
-      {/* Feedback Snackbar */}
-      <Snackbar 
-        open={snackbarOpen} 
-        autoHideDuration={6000} 
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <MuiAlert 
-          elevation={6} 
-          variant="filled" 
-          onClose={handleCloseSnackbar} 
-          severity={snackbarSeverity}
+        {isEditFormOpen && editingPlanting && (
+          <AddPlantingForm 
+            open={isEditFormOpen}
+            onClose={() => {setIsEditFormOpen(false); setEditingPlanting(null);}} 
+            onSubmit={handleEditPlantingSubmit}
+            initialData={editingPlanting} 
+            error={submitError}
+          />
+        )}
+
+        <Snackbar 
+          open={snackbarOpen} 
+          autoHideDuration={6000} 
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }} 
         >
-          {snackbarMessage}
-        </MuiAlert>
-      </Snackbar>
-    </> 
+          <MuiAlert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }} variant="filled">
+            {snackbarMessage}
+          </MuiAlert>
+        </Snackbar>
+      </Container>
+    </>
   );
 }
 

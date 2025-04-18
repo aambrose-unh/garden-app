@@ -67,3 +67,118 @@ export const getGardenBeds = async () => {
   const data = await response.json();
   return data;
 };
+
+// --- Planting History Functions ---
+
+/**
+ * Fetches planting history for a specific garden bed.
+ * @param {number} bedId The ID of the garden bed.
+ * @param {boolean} [activeOnly=false] Optional. If true, fetches only currently active plantings.
+ * @returns {Promise<Array<object>>} A promise that resolves to an array of planting objects.
+ */
+export const getPlantingsForBed = async (bedId, activeOnly = false) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.error('Authentication token not found.');
+    throw new Error('User not authenticated');
+  }
+
+  let url = `${API_URL}/garden-beds/${bedId}/plantings`;
+  if (activeOnly) {
+    url += '?active=true'; // Add query parameter for active filtering [SF]
+  }
+
+  console.debug(`Fetching plantings from: ${url}`); // For debugging
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error(`API Error Response (getPlantingsForBed ${bedId}):`, errorBody);
+    // Handle specific errors like 404 or return a generic error
+    if (response.status === 404) {
+      // Bed not found likely already handled by page loading bed details
+      // Could mean no plantings found, which is okay - return empty array
+      return []; 
+    } else {
+      throw new Error(`Failed to fetch plantings for bed ${bedId}. Status: ${response.status}`);
+    }
+  }
+  // If response is OK but empty (e.g., 200 with empty list), return empty array
+  const data = await response.json();
+  return data || []; // Ensure we always return an array
+};
+
+/**
+ * Updates an existing planting record.
+ * @param {number} plantingId The ID of the planting to update.
+ * @param {object} plantingData The updated planting data.
+ * @returns {Promise<object>} A promise that resolves to the updated planting object.
+ */
+export const updatePlanting = async (plantingId, plantingData) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('Authentication token not found.');
+      throw new Error('User not authenticated');
+    }
+  
+    const response = await fetch(`${API_URL}/plantings/${plantingId}`, { // Use the dedicated planting update route
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(plantingData) // Send the updated data [IV]
+    });
+  
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`API Error Response (updatePlanting ${plantingId}):`, errorBody);
+      // Consider more specific error handling based on status codes (400, 404, etc.)
+      throw new Error(`Failed to update planting ${plantingId}. Status: ${response.status}`);
+    }
+  
+    const data = await response.json();
+    return data; // Return the updated planting details from the API
+  };
+  
+  /**
+   * Deletes a planting record.
+   * @param {number} plantingId The ID of the planting to delete.
+   * @returns {Promise<object>} A promise that resolves to the success message from the API.
+   */
+  export const deletePlanting = async (plantingId) => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('Authentication token not found.');
+      throw new Error('User not authenticated');
+    }
+  
+    const response = await fetch(`${API_URL}/plantings/${plantingId}`, { // Use the dedicated planting delete route
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json', // Optional for DELETE, but good practice
+        'Authorization': `Bearer ${token}`
+      },
+    });
+  
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error(`API Error Response (deletePlanting ${plantingId}):`, errorBody);
+      throw new Error(`Failed to delete planting ${plantingId}. Status: ${response.status}`);
+    }
+  
+    // DELETE often returns 200 OK with a success message or 204 No Content
+    if (response.status === 204) {
+      return { message: 'Planting deleted successfully' }; // Provide a consistent success object
+    } 
+    
+    const data = await response.json(); // Assume 200 OK returns a message
+    return data;
+  };

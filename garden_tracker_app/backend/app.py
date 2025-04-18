@@ -5,6 +5,7 @@ from flask import Flask, request, jsonify
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 import datetime
+from datetime import date
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token, JWTManager, jwt_required, get_jwt_identity
 from flask_cors import CORS
@@ -465,38 +466,42 @@ def get_plant_type_details(plant_type_id):
 @app.route('/api/garden-beds/<int:bed_id>/plantings', methods=['GET'])
 @jwt_required()  # Protect this route
 def get_plantings_for_bed(bed_id):
-    # TODO: Replace with actual user identification from auth token
-    # For now, assume user 1
-    # user_id = 1
-    current_user_id = get_jwt_identity()
+    """ Get all plantings for a specific bed, optionally filtered by active status. """
+    user_id = get_jwt_identity()
+    logger.debug(f"User {user_id} fetching plantings for bed {bed_id}")
 
-    # Check if bed exists and belongs to user
-    bed = GardenBed.query.filter_by(id=bed_id, user_id=current_user_id).first()
+    # Verify the bed exists and belongs to the user
+    bed = GardenBed.query.filter_by(id=bed_id, user_id=user_id).first()
     if not bed:
+        logger.warning(f"Auth failed or bed not found: User {user_id}, bed {bed_id}.")
         return jsonify({'message': 'Garden bed not found or access denied'}), 404
 
-    try:
-        # Query plantings for the specific bed, order by year/season perhaps?
-        plantings = Planting.query.filter_by(bed_id=bed_id) \
-            .order_by(Planting.year.desc(), Planting.season).all()
+    # Check for 'active' query parameter
+    show_active_only = request.args.get('active', 'false').lower() == 'true'
+    logger.debug(f"Filtering active plantings for bed {bed_id}: {show_active_only}")
 
-        plantings_data = [
-            {
-                'id': p.id,
-                'bed_id': p.bed_id,
-                'plant_type_id': p.plant_type_id,
-                'plant_common_name': p.plant_type.common_name,  # Access related object
-                'year': p.year,
-                'season': p.season,
-                'date_planted': p.date_planted.isoformat() if p.date_planted else None,
-                'notes': p.notes,
-                'is_current': p.is_current
-            } for p in plantings
-        ]
-        return jsonify(plantings_data), 200
-    except Exception as e:
-        logger.error("Error retrieving planting history: %s", str(e))
-        return jsonify({'message': 'Failed to retrieve planting history due to server error'}), 500
+    query = Planting.query.filter_by(bed_id=bed_id)
+
+    if show_active_only:
+        # Filter based on the 'is_current' flag instead of dates [Fix][SF]
+        logger.debug(f"Applying is_current filter for bed {bed_id}")
+        query = query.filter(Planting.is_current == True)
+        # Previous date-based logic (commented out for reference):
+        # today = datetime.date.today()
+        # query = query.filter(
+        #     Planting.date_planted <= today, 
+        #     (Planting.expected_harvest_date == None) | (Planting.expected_harvest_date >= today)
+        # )
+        
+    # Order results, e.g., by year then season (optional)
+    query = query.order_by(Planting.year.desc(), Planting.season)
+
+    plantings = query.all()
+    
+    # Use the to_dict() method for serialization [DRY]
+    plantings_list = [p.to_dict() for p in plantings]
+    logger.info(f"Returning {len(plantings_list)} plantings for bed {bed_id} (active filter: {show_active_only}).")
+    return jsonify(plantings_list)
 
 @app.route('/api/garden-beds/<int:bed_id>/plantings', methods=['POST'])
 @jwt_required()  # Protect this route
@@ -556,7 +561,7 @@ def add_planting(bed_id):
             'id': new_planting.id,
             'bed_id': new_planting.bed_id,
             'plant_type_id': new_planting.plant_type_id,
-            'plant_common_name': plant_type.common_name,  # Include for convenience
+            'plant_common_name': plant_type.common_name,  # Access related object
             'year': new_planting.year,
             'season': new_planting.season,
             'date_planted': new_planting.date_planted.isoformat() if new_planting.date_planted else None,
@@ -572,71 +577,107 @@ def add_planting(bed_id):
 @app.route('/api/plantings/<int:planting_id>', methods=['PUT'])
 @jwt_required()  # Protect this route
 def update_planting(planting_id):
-    # TODO: Replace with actual user identification from auth token
-    # Verify planting belongs to the user indirectly via the bed
-    # user_id = 1
-    current_user_id = get_jwt_identity()
+    """ Updates an existing planting record. """
+    user_id = get_jwt_identity()
+    logger.debug(f"User {user_id} attempting to update planting {planting_id}")
 
     planting = Planting.query.get(planting_id)
     if not planting:
+        logger.warning(f"Update failed: Planting {planting_id} not found.")
         return jsonify({'message': 'Planting record not found'}), 404
 
-    # Check ownership by verifying the associated bed belongs to the user
-    bed = GardenBed.query.filter_by(id=planting.bed_id, user_id=current_user_id).first()
+    # Verify the planting belongs to a bed owned by the user
+    bed = GardenBed.query.filter_by(id=planting.bed_id, user_id=user_id).first()
     if not bed:
-        return jsonify({'message': 'Access denied to this planting record'}), 403  # Forbidden
+        logger.warning(f"Auth failed: User {user_id} cannot update planting {planting_id} in bed {planting.bed_id}.")
+        return jsonify({'message': 'Unauthorized to update this planting record'}), 403
 
     data = request.get_json()
     if not data:
-        return jsonify({'message': 'No input data provided'}), 400
+        logger.warning(f"Update failed for planting {planting_id}: No data provided.")
+        return jsonify({'message': 'No update data provided'}), 400
 
-    # Update fields if provided
+    logger.debug(f"Received update data for planting {planting_id}: {data}")
+
+    # Validate and update fields [IV]
+    updated = False
     if 'plant_type_id' in data:
-        # Check if new plant type exists
-        new_plant_type = PlantType.query.get(data['plant_type_id'])
-        if not new_plant_type:
-            return jsonify({'message': f"Plant type with id {data['plant_type_id']} not found"}), 404
+        # Ensure plant_type exists (optional, depends on requirements)
+        plant_type = PlantType.query.get(data['plant_type_id'])
+        if not plant_type:
+            logger.warning(f"Update failed for planting {planting_id}: Invalid plant_type_id {data['plant_type_id']}.")
+            return jsonify({'message': f"Invalid plant type ID: {data['plant_type_id']}"}), 400
         planting.plant_type_id = data['plant_type_id']
-        plant_common_name = new_plant_type.common_name  # Keep track for response
-    else:
-        plant_common_name = planting.plant_type.common_name
+        updated = True
 
-    if 'year' in data: planting.year = data['year']
-    if 'season' in data: planting.season = data['season']
+    # Safely update other fields, checking for presence in data
+    if 'year' in data:
+        try:
+            planting.year = int(data['year'])
+            updated = True
+        except (ValueError, TypeError):
+             logger.warning(f"Update failed for planting {planting_id}: Invalid year format {data['year']}.")
+             return jsonify({'message': 'Invalid year format'}), 400
+             
+    if 'season' in data:
+        planting.season = data['season']
+        updated = True
+
     if 'date_planted' in data:
-        date_planted_str = data['date_planted']
-        if date_planted_str:
-            try:
-                planting.date_planted = datetime.datetime.strptime(date_planted_str, '%Y-%m-%d').date()
-            except ValueError:
-                return jsonify({'message': 'Invalid date format for date_planted. Use YYYY-MM-DD.'}), 400
-        else:
-            planting.date_planted = None  # Allow setting date to null
-    if 'notes' in data: planting.notes = data['notes']
-    if 'is_current' in data: planting.is_current = data['is_current']
+        try:
+            # Handle empty string or null for clearing the date
+            if data['date_planted']:
+                planting.date_planted = datetime.date.fromisoformat(data['date_planted'])
+            else:
+                planting.date_planted = None
+            updated = True
+        except (ValueError, TypeError):
+            logger.warning(f"Update failed for planting {planting_id}: Invalid date_planted format {data['date_planted']}.")
+            return jsonify({'message': 'Invalid date planted format (YYYY-MM-DD)'}), 400
+            
+    if 'expected_harvest_date' in data:
+        try:
+             # Handle empty string or null for clearing the date
+            if data['expected_harvest_date']:
+                planting.expected_harvest_date = datetime.date.fromisoformat(data['expected_harvest_date'])
+            else:
+                 planting.expected_harvest_date = None
+            updated = True
+        except (ValueError, TypeError):
+            logger.warning(f"Update failed for planting {planting_id}: Invalid expected_harvest_date format {data['expected_harvest_date']}.")
+            return jsonify({'message': 'Invalid expected harvest date format (YYYY-MM-DD)'}), 400
 
-    # Re-validate required fields after update
-    if not planting.plant_type_id or not planting.year or not planting.season:
-        return jsonify({'message': 'Plant type ID, year, and season cannot be empty'}), 400
+    if 'notes' in data: # Allow setting notes to empty string
+        planting.notes = data['notes']
+        updated = True
+
+    if 'quantity' in data: # Allow setting quantity to empty string
+        planting.quantity = data['quantity']
+        updated = True
+        
+    # Handle the 'is_current' field [Fix]
+    if 'is_current' in data:
+        if isinstance(data['is_current'], bool):
+            planting.is_current = data['is_current']
+            updated = True
+            logger.debug(f"Setting is_current for planting {planting_id} to {data['is_current']}")
+        else:
+            logger.warning(f"Update failed for planting {planting_id}: Invalid is_current value type {type(data['is_current'])}.")
+            return jsonify({'message': "Invalid value for 'is_current', must be boolean (true/false)"}), 400
+
+    if not updated:
+        logger.info(f"No valid fields provided for update on planting {planting_id}")
+        return jsonify({'message': 'No valid fields provided for update'}), 400
 
     try:
         db.session.commit()
-        planting_data = {
-            'id': planting.id,
-            'bed_id': planting.bed_id,
-            'plant_type_id': planting.plant_type_id,
-            'plant_common_name': plant_common_name,
-            'year': planting.year,
-            'season': planting.season,
-            'date_planted': planting.date_planted.isoformat() if planting.date_planted else None,
-            'notes': planting.notes,
-            'is_current': planting.is_current
-        }
-        return jsonify({'message': 'Planting record updated successfully', 'planting': planting_data}), 200
+        logger.info(f"Planting {planting_id} updated successfully by user {user_id}.")
+        # Return the updated object using to_dict [DRY]
+        return jsonify(planting.to_dict()), 200
     except Exception as e:
         db.session.rollback()
-        logger.error("Error updating planting record: %s", str(e))
-        return jsonify({'message': 'Failed to update planting record due to server error'}), 500
+        logger.error(f"Database error updating planting {planting_id}: {str(e)}")
+        return jsonify({'message': 'Update failed due to server error'}), 500
 
 @app.route('/api/plantings/<int:planting_id>', methods=['DELETE'])
 @jwt_required()  # Protect this route

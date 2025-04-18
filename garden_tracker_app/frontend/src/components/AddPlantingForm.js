@@ -12,7 +12,9 @@ import {
   FormControl,
   InputLabel,
   Grid,
-  CircularProgress
+  CircularProgress,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import { getAllPlantTypesNew as getAllPlantTypes } from '../services/plantService'; // Use alias for consistency
 
@@ -20,18 +22,26 @@ const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 10 }, (_, i) => currentYear - i); // Last 10 years
 const seasons = ['Spring', 'Summer', 'Fall', 'Winter', 'Year-Round'];
 
-function AddPlantingForm({ open, onClose, onSubmit, bedId }) {
+function AddPlantingForm({ open, onClose, onSubmit, bedId, initialData }) {
   const [plantTypes, setPlantTypes] = useState([]);
   const [loadingPlantTypes, setLoadingPlantTypes] = useState(true);
   const [errorPlantTypes, setErrorPlantTypes] = useState('');
-  const [formData, setFormData] = useState({
+
+  // Determine if it's an edit operation
+  const isEditMode = Boolean(initialData);
+
+  // Initialize form state
+  const getInitialFormData = () => ({
     plant_type_id: '',
     date_planted: '', // YYYY-MM-DD format
+    expected_harvest_date: '', // Add expected harvest date
     year: currentYear.toString(),
     season: '',
     quantity: '',
     notes: '',
+    is_current: true, // Default to true for new plantings
   });
+  const [formData, setFormData] = useState(getInitialFormData());
 
   useEffect(() => {
     const fetchPlantTypes = async () => {
@@ -52,11 +62,32 @@ function AddPlantingForm({ open, onClose, onSubmit, bedId }) {
     fetchPlantTypes();
   }, [open]); // Refetch when dialog opens
 
+  // Effect to populate form when in edit mode and initialData is provided
+  useEffect(() => {
+    if (isEditMode && initialData && open) {
+      setFormData({
+        plant_type_id: initialData.plant_type_id || '',
+        date_planted: initialData.date_planted ? initialData.date_planted.split('T')[0] : '', // Format YYYY-MM-DD
+        expected_harvest_date: initialData.expected_harvest_date ? initialData.expected_harvest_date.split('T')[0] : '', // Format YYYY-MM-DD
+        year: initialData.year?.toString() || currentYear.toString(),
+        season: initialData.season || '',
+        quantity: initialData.quantity || '',
+        notes: initialData.notes || '',
+        is_current: initialData.is_current !== undefined ? initialData.is_current : true,
+      });
+    } else if (!isEditMode && open) {
+        // Reset form for adding when opening
+        setFormData(getInitialFormData());
+    }
+    // Do not reset if closing
+  }, [isEditMode, initialData, open]);
+
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value,
+      // Use checked for checkboxes, value otherwise [Fix]
+      [name]: type === 'checkbox' ? checked : value,
     }));
   };
 
@@ -74,7 +105,8 @@ function AddPlantingForm({ open, onClose, onSubmit, bedId }) {
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Add New Planting Record</DialogTitle>
+      {/* Dynamic title based on mode [CA] */}
+      <DialogTitle>{isEditMode ? 'Edit Planting Record' : 'Add New Planting Record'}</DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent>
           {loadingPlantTypes ? (
@@ -117,6 +149,22 @@ function AddPlantingForm({ open, onClose, onSubmit, bedId }) {
                   InputLabelProps={{
                     shrink: true,
                   }}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  id="expected_harvest_date"
+                  name="expected_harvest_date"
+                  label="Expected Harvest Date"
+                  type="date"
+                  value={formData.expected_harvest_date}
+                  onChange={handleChange}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                  helperText="Optional. Used for active filtering if 'Is Current' logic is date-based."
                 />
               </Grid>
 
@@ -180,13 +228,28 @@ function AddPlantingForm({ open, onClose, onSubmit, bedId }) {
                   onChange={handleChange}
                 />
               </Grid>
+
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.is_current}
+                      onChange={handleChange}
+                      name="is_current"
+                      color="primary"
+                    />
+                  }
+                  label="Is Currently Growing? (Manually mark as active/inactive)"
+                />
+              </Grid>
             </Grid>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
           <Button type="submit" variant="contained" disabled={loadingPlantTypes || !formData.plant_type_id}>
-            Add Planting
+            {/* Dynamic button text [CA] */}
+            {isEditMode ? 'Update Planting' : 'Add Planting'}
           </Button>
         </DialogActions>
       </form>

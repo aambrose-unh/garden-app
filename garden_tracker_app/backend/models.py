@@ -83,6 +83,7 @@ class Planting(db.Model):
     year = db.Column(db.Integer, index=True)
     season = db.Column(db.String(20))  # e.g., Spring, Summer, Fall, Full Season
     date_planted = db.Column(db.Date)
+    expected_harvest_date = db.Column(db.Date, nullable=True) # Added field for active filtering [REH]
     notes = db.Column(db.Text)
     is_current = db.Column(db.Boolean, default=True, index=True)
     quantity = db.Column(db.String(50)) # Optional, e.g., "5 plants", "2 sq ft"
@@ -96,9 +97,12 @@ class Planting(db.Model):
             'id': self.id,
             'bed_id': self.bed_id,
             'plant_type_id': self.plant_type_id,
+            # Access related PlantType object to get the common name [Fix]
+            'plant_common_name': self.plant_type.common_name if self.plant_type else 'Unknown Plant Type',
             'year': self.year,
             'season': self.season,
             'date_planted': self.date_planted.isoformat() if self.date_planted else None,
+            'expected_harvest_date': self.expected_harvest_date.isoformat() if self.expected_harvest_date else None, # Add to serialization
             'notes': self.notes,
             'is_current': self.is_current,
             'quantity': self.quantity
