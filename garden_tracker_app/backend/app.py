@@ -483,15 +483,15 @@ def get_plantings_for_bed(bed_id):
     query = Planting.query.filter_by(bed_id=bed_id)
 
     if show_active_only:
-        # Filter based on the 'is_current' flag instead of dates [Fix][SF]
-        logger.debug(f"Applying is_current filter for bed {bed_id}")
-        query = query.filter(Planting.is_current == True)
-        # Previous date-based logic (commented out for reference):
-        # today = datetime.date.today()
-        # query = query.filter(
-        #     Planting.date_planted <= today, 
-        #     (Planting.expected_harvest_date == None) | (Planting.expected_harvest_date >= today)
-        # )
+         # Filter based on the 'is_current' flag instead of dates [Fix][SF]
+         logger.debug(f"Applying is_current filter for bed {bed_id}")
+         query = query.filter(Planting.is_current.is_(True))
+         # Previous date-based logic (commented out for reference):
+         # today = datetime.date.today()
+         # query = query.filter(
+         #     Planting.date_planted <= today, 
+         #     (Planting.expected_harvest_date == None) | (Planting.expected_harvest_date >= today)
+         # )
         
     # Order results, e.g., by year then season (optional)
     query = query.order_by(Planting.year.desc(), Planting.season)

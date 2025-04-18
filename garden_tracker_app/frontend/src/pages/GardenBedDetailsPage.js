@@ -24,11 +24,14 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { getGardenBedDetails } from '../services/bedService';
+// Import all planting-related functions for a specific bed from bedService [Fix][CA]
 import { 
   getPlantingsForBed, 
-  addPlantingToBed 
-} from '../services/plantingService'; 
-import { updatePlanting, deletePlanting } from '../services/bedService';
+  updatePlanting, 
+  deletePlanting 
+} from '../services/bedService';
+// Import only the generic addPlantingToBed from plantingService (if needed elsewhere, or could be moved too)
+import { addPlantingToBed } from '../services/plantingService'; 
 import AddPlantingForm from '../components/AddPlantingForm'; 
 
 function GardenBedDetailsPage() {
