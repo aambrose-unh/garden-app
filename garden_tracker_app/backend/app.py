@@ -68,13 +68,12 @@ def check_if_token_is_revoked(jwt_header, jwt_payload):
 def invalid_token_callback(error_string):
     """ Handles errors when the token is invalid format, expired (but specific handlers are better), etc. """
     logger.error("Invalid token error: %s", error_string) # Log the specific error
-    
+
     # Try to get the token from the request for debugging
     auth_header = request.headers.get('Authorization')
     if auth_header:
-        token = auth_header.split(' ')[1]
-        logger.error("Invalid token (first 20 chars): %s", token[:20])
-    
+        logger.error("Invalid token")
+
     return jsonify({"message": "Invalid token provided.", "error": error_string}), 422
 
 @jwt.expired_token_loader
@@ -209,13 +208,9 @@ def get_garden_beds():
     logger.info("\n=== Garden Beds Request Received ===")
     try:
         # Get the JWT token from the request
-        auth_header = request.headers.get('Authorization')
-        if auth_header:
-            logger.info("Authorization header: %s", auth_header)
-            token = auth_header.split(' ')[1]
-            logger.info("Token (first 20 chars): %s", token[:20])
-        else:
-            logger.warning("No Authorization header found")
+        # auth_header = request.headers.get('Authorization') # Removed logging [SFT]
+        # if auth_header:
+            # logger.info("Authorization header: %s", auth_header)
 
         # Get the current user ID from the token
         current_user_id = get_jwt_identity()
@@ -306,27 +301,42 @@ def create_garden_bed():
 def get_bed_details(bed_id):
     current_user_id = get_jwt_identity()
     try:
-        bed = GardenBed.query.filter_by(id=bed_id, user_id=current_user_id).first()
-        # bed = GardenBed.query.get(bed_id) # Old way
+        # Get the JWT token from the request
+        # auth_header = request.headers.get('Authorization')
+        # if auth_header:
+            # logger.info("Authorization header: %s", auth_header)
 
-        if not bed:
-            return jsonify({'message': 'Garden bed not found or access denied'}), 404
+        # Get the current user ID from the token
+        current_user_id = get_jwt_identity()
+        logger.info("Current user ID from token: %s", current_user_id)
+        logger.info("Type of user ID: %s", type(current_user_id))
 
-        bed_data = {
-            'id': bed.id,
-            'user_id': bed.user_id,
-            'name': bed.name,
-            'length': bed.length,
-            'width': bed.width,
-            'unit_measure': bed.unit_measure,
-            'notes': bed.notes, # Corrected field name
-            'creation_date': bed.creation_date.isoformat()
-            # TODO: Add planting history here later
-        }
-        return jsonify(bed_data), 200
+        user = User.query.get(current_user_id)
+        if not user:
+            logger.warning("User not found for ID: %s", current_user_id)
+            return jsonify({"message": "User not found"}), 404
+
+        garden_beds = GardenBed.query.filter_by(user_id=current_user_id).all()
+        beds_list = [
+            {
+                'id': bed.id,
+                'name': bed.name,
+                'length': bed.length,
+                'width': bed.width,
+                'notes': bed.notes
+            }
+            for bed in garden_beds
+        ]
+
+        logger.info("=== Garden Beds Response ===")
+        logger.info("Found %d garden beds", len(garden_beds))
+        logger.info("=== End of Request ===\n")
+        
+        return jsonify(beds_list), 200
+
     except Exception as e:
-        logger.error("Error retrieving garden bed details: %s", str(e))
-        return jsonify({'message': 'Failed to retrieve garden bed details due to server error'}), 500
+        logger.error("Error in get_garden_beds: %s", str(e))
+        raise
 
 @app.route('/api/garden-beds/<int:bed_id>', methods=['PUT'])
 @jwt_required()  # Protect this route
