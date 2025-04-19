@@ -13,15 +13,85 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
   // State for yard definition only
   const [yard, setYard] = useState(DEFAULT_YARD);
 
+  // Local state for bed positions (keyed by bed id)
+  const [bedPositions, setBedPositions] = useState(() => {
+    const positions = {};
+    beds.forEach((bed, idx) => {
+      const id = bed.id || bed.bed_id;
+      positions[id] = {
+        x: bed.x ?? 10 + idx * 120,
+        y: bed.y ?? 10 + idx * 70,
+      };
+    });
+    return positions;
+  });
+
+  // Track dragging state
+  const [draggingBedId, setDraggingBedId] = useState(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // Update positions if beds prop changes (e.g., after backend reload)
+  React.useEffect(() => {
+    setBedPositions((prev) => {
+      const positions = { ...prev };
+      beds.forEach((bed, idx) => {
+        const id = bed.id || bed.bed_id;
+        if (!(id in positions)) {
+          positions[id] = {
+            x: bed.x ?? 10 + idx * 120,
+            y: bed.y ?? 10 + idx * 70,
+          };
+        }
+      });
+      return positions;
+    });
+  }, [beds]);
+
   // Handlers for yard definition (size/shape)
   const handleYardChange = (e) => {
     const { name, value } = e.target;
     setYard((prev) => ({ ...prev, [name]: value }));
   };
 
-  // TODO: Implement drag-and-drop for beds
-  // TODO: Visualize plants in beds
-  // TODO: Make beds/plants clickable
+  // Mouse event handlers for drag-and-drop
+  const handleBedMouseDown = (e, bed, idx) => {
+    e.preventDefault();
+    const svgRect = e.target.ownerSVGElement.getBoundingClientRect();
+    const id = bed.id || bed.bed_id;
+    setDraggingBedId(id);
+    setDragOffset({
+      x: e.clientX - (bedPositions[id]?.x ?? 10 + idx * 120),
+      y: e.clientY - (bedPositions[id]?.y ?? 10 + idx * 70),
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (draggingBedId) {
+      setBedPositions((prev) => ({
+        ...prev,
+        [draggingBedId]: {
+          x: e.clientX - dragOffset.x,
+          y: e.clientY - dragOffset.y,
+        },
+      }));
+    }
+  };
+
+  const handleMouseUp = () => {
+    setDraggingBedId(null);
+  };
+
+  // Attach global listeners only when dragging
+  React.useEffect(() => {
+    if (draggingBedId) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  });
 
   // Simple SVG visualization
   return (
@@ -59,45 +129,51 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
       >
         {/* Yard boundary */}
         {/* Render garden beds */}
-        {beds.map((bed, idx) => (
-          <g key={bed.id || bed.bed_id}>
-            <rect
-              x={bed.x || 10 + idx * 120}
-              y={bed.y || 10 + idx * 70}
-              width={bed.width || 100}
-              height={bed.height || 50}
-              fill="#b2dfdb"
-              stroke="#00695c"
-              strokeWidth={2}
-              cursor="pointer"
-              onClick={() => onBedClick && onBedClick(bed)}
-            />
-            <text
-              x={(bed.x || 10 + idx * 120) + (bed.width || 100) / 2}
-              y={(bed.y || 10 + idx * 70) + (bed.height || 50) / 2}
-              textAnchor="middle"
-              alignmentBaseline="middle"
-              fontSize={14}
-              fill="#004d40"
-            >
-              {bed.name}
-            </text>
-            {/* Render plants in bed */}
-            {Array.isArray(bed.plants) && bed.plants.map((plant, pidx) => (
-              <circle
-                key={plant.id || plant.planting_id || pidx}
-                cx={(bed.x || 10 + idx * 120) + 20 + (pidx * 20)}
-                cy={(bed.y || 10 + idx * 70) + (bed.height || 50) / 2}
-                r={8}
-                fill="#81c784"
-                stroke="#388e3c"
-                strokeWidth={1}
-                cursor="pointer"
-                onClick={() => onPlantClick && onPlantClick(plant)}
+        {beds.map((bed, idx) => {
+          const id = bed.id || bed.bed_id;
+          const pos = bedPositions[id] || { x: 10 + idx * 120, y: 10 + idx * 70 };
+          return (
+            <g key={id} style={{ pointerEvents: 'all' }}>
+              <rect
+                x={pos.x}
+                y={pos.y}
+                width={bed.width || 100}
+                height={bed.height || 50}
+                fill="#b2dfdb"
+                stroke="#00695c"
+                strokeWidth={2}
+                cursor={draggingBedId === id ? "grabbing" : "grab"}
+                onMouseDown={(e) => handleBedMouseDown(e, bed, idx)}
+                onClick={() => onBedClick && onBedClick(bed)}
               />
-            ))}
-          </g>
-        ))}
+              <text
+                x={pos.x + (bed.width || 100) / 2}
+                y={pos.y + (bed.height || 50) / 2}
+                textAnchor="middle"
+                alignmentBaseline="middle"
+                fontSize={14}
+                fill="#004d40"
+                pointerEvents="none"
+              >
+                {bed.name}
+              </text>
+              {/* Render plants in bed */}
+              {Array.isArray(bed.plants) && bed.plants.map((plant, pidx) => (
+                <circle
+                  key={plant.id || plant.planting_id || pidx}
+                  cx={pos.x + 20 + (pidx * 20)}
+                  cy={pos.y + (bed.height || 50) / 2}
+                  r={8}
+                  fill="#81c784"
+                  stroke="#388e3c"
+                  strokeWidth={1}
+                  cursor="pointer"
+                  onClick={() => onPlantClick && onPlantClick(plant)}
+                />
+              ))}
+            </g>
+          );
+        })}
       </svg>
       {/* TODO: Instructions, drag-and-drop UI, plant visualization, click handlers for plants */}
     </div>
