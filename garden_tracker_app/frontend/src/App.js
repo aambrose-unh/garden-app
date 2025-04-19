@@ -40,6 +40,9 @@ function App() {
                 <Button color="inherit" component={Link} to="/plants">
                   Plant Library
                 </Button>
+                <Button color="inherit" component={Link} to="/layout">
+                  Garden Layout
+                </Button>
                 {/* Add Logout button here later */}
               </Box>
             )}
@@ -56,6 +59,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/layout" 
+            element={
+              <ProtectedRoute>
+                {/* Lazy import to avoid circular dependency issues */}
+                {React.createElement(require('./pages/GardenLayoutPage').default)}
               </ProtectedRoute>
             } 
           />
