@@ -44,9 +44,9 @@ function GardenLayoutPage() {
   }, []);
 
   const handleBedClick = (bed) => {
-    // TODO: Navigate to garden bed details
-    alert(`Clicked bed: ${bed.name}`);
+    // Dialog disabled: do nothing on bed click [SF]
   };
+
   const handlePlantClick = (plant) => {
     // TODO: Navigate to plant details
     alert(`Clicked plant: ${plant.commonName}`);

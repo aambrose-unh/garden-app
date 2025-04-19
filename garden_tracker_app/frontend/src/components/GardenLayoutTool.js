@@ -36,10 +36,13 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
       const positions = { ...prev };
       beds.forEach((bed, idx) => {
         const id = bed.id || bed.bed_id;
-        if (!(id in positions)) {
+        // Only update if x/y have changed in backend, or if bed is new
+        if (!(id in positions) ||
+          (typeof bed.x === 'number' && typeof bed.y === 'number' &&
+            (positions[id].x !== bed.x || positions[id].y !== bed.y))) {
           positions[id] = {
-            x: bed.x ?? 10 + idx * 120,
-            y: bed.y ?? 10 + idx * 70,
+            x: typeof bed.x === 'number' ? bed.x : 10 + idx * 120,
+            y: typeof bed.y === 'number' ? bed.y : 10 + idx * 70,
           };
         }
       });
@@ -77,7 +80,19 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = async () => {
+    if (draggingBedId) {
+      const pos = bedPositions[draggingBedId];
+      try {
+        // Persist position to backend
+        const { updateGardenBedPosition } = await import("../services/bedService");
+        await updateGardenBedPosition(draggingBedId, { x: pos.x, y: pos.y });
+      } catch (err) {
+        // Optionally, show error to user
+        console.error("Failed to persist bed position:", err);
+        // Optionally, revert UI position or notify user
+      }
+    }
     setDraggingBedId(null);
   };
 
