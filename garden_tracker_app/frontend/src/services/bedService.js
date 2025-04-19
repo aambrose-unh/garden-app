@@ -68,6 +68,33 @@ export const getGardenBeds = async () => {
   return data;
 };
 
+
+/**
+ * Updates the position (x/y) of a garden bed.
+ * @param {number} bedId The ID of the garden bed.
+ * @param {object} position {x, y} coordinates.
+ * @returns {Promise<object>} The updated bed.
+ */
+export const updateGardenBedPosition = async (bedId, position) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('User not authenticated');
+  }
+  const response = await fetch(`${API_URL}/garden-beds/${bedId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(position),
+  });
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Failed to update bed position. Status: ${response.status}. ${errorBody}`);
+  }
+  return response.json();
+};
+
 // --- Planting History Functions ---
 
 /**

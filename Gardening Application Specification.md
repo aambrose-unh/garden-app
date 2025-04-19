@@ -56,13 +56,22 @@ This document outlines the specifications for the Garden Tracker application. Th
 \* Mark Current: Ability to easily identify/filter for plants currently growing in a bed for the active season.  
 \* Edit/Delete Planting Record: Users can correct or remove past planting records.  
 4.5. Planting Recommendations  
-\* When viewing a garden bed, the application should provide guidance for the next planting cycle based on its history.  
-\* Rotation Logic:  
+* When viewing a garden bed, the application should provide guidance for the next planting cycle based on its history.  
+* Rotation Logic:  
 \* Identify the Crop Rotation Family of the most recent plantings in the bed.  
 \* Consult predefined rules (e.g., "Avoid planting Nightshades after Nightshades", "Legumes are good predecessors for heavy feeders like Brassicas").  
 \* Suggest suitable plant families or specific plants for the next season.  
 \* Warn against planting incompatible successive crops (e.g., same family consecutively).  
 \* Spacing Consideration (Basic): When viewing potential plants, display their typical size to help users assess fit within the bed dimensions (detailed layout planning is a future enhancement).  
+4.6. Visual Garden Bed Layout Tool
+* Users can define their yard by specifying its size and shape (e.g., rectangular, L-shaped; dimensions in user-preferred units).
+* Users can visually create and configure garden beds, selecting their size and shape.
+* Drag-and-drop interface allows users to place garden beds within the defined yard area.
+* Each garden bed visually indicates which plants are currently planted within it.
+* Garden beds and individual plants are clickable, allowing navigation to detailed views for the selected bed or plant.
+* The layout tool should be intuitive and responsive, supporting both desktop and tablet use.
+* (Optional V1.1) Support for non-rectangular yards or beds, grid snapping, and advanced alignment tools.
+
 **5\. Non-Functional Requirements**
 
 * **Performance:** The application should load quickly and respond promptly to user interactions under typical load (e.g., \< 2-second response for most actions).  
@@ -117,7 +126,6 @@ This document outlines the specifications for the Garden Tracker application. Th
 
 **10\. Future Enhancements**
 
-* Visual garden bed layout tool (drag and drop plants).  
 * Photo uploads for beds and plants.  
 * Pest and disease tracking/logging per planting.  
 * Integration with weather data/APIs.  

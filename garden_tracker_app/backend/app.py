@@ -369,11 +369,22 @@ def update_garden_bed(bed_id):
             return jsonify({"message": "No input data provided"}), 400
 
         # Update fields if they are provided in the request [IV]
-        bed.name = data.get('name', bed.name)
-        bed.length = data.get('length', bed.length)
-        bed.width = data.get('width', bed.width)
-        bed.unit_measure = data.get('unit_measure', bed.unit_measure)
-        bed.notes = data.get('notes', bed.notes)
+        # Only update fields if present and not None [REH][IV]
+        if 'name' in data and data['name'] is not None:
+            bed.name = data['name']
+        if 'length' in data and data['length'] is not None:
+            bed.length = data['length']
+        if 'width' in data and data['width'] is not None:
+            bed.width = data['width']
+        if 'unit_measure' in data and data['unit_measure'] is not None:
+            bed.unit_measure = data['unit_measure']
+        if 'notes' in data and data['notes'] is not None:
+            bed.notes = data['notes']
+        # Position persistence [IV]
+        if 'x' in data and data['x'] is not None:
+            bed.x = data['x']
+        if 'y' in data and data['y'] is not None:
+            bed.y = data['y']
         bed.last_modified = datetime.datetime.now(datetime.timezone.utc) # Update last modified time
 
         db.session.commit()
