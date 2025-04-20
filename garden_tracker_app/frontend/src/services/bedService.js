@@ -75,6 +75,7 @@ export const getGardenBeds = async () => {
  * @param {object} position {x, y} coordinates.
  * @returns {Promise<object>} The updated bed.
  */
+// Update garden bed position and orientation
 export const updateGardenBedPosition = async (bedId, position) => {
   const token = localStorage.getItem('token');
   if (!token) {
@@ -86,7 +87,11 @@ export const updateGardenBedPosition = async (bedId, position) => {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify(position),
+    body: JSON.stringify({
+      ...(position.x !== undefined ? { x: position.x } : {}),
+      ...(position.y !== undefined ? { y: position.y } : {}),
+      ...(position.orientation !== undefined ? { orientation: position.orientation } : {}),
+    }),
   });
   if (!response.ok) {
     const errorBody = await response.text();
