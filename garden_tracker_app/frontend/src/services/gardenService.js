@@ -65,7 +65,7 @@ const updateGardenBed = async (bedId, bedData) => {
     throw new Error('Authentication token not found. Please log in again.');
   }
 
-  const response = await fetch(`${API_URL}/garden/beds/${bedId}`, {
+  const response = await fetch(`${API_URL}/garden-beds/${bedId}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
