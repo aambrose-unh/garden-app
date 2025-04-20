@@ -13,7 +13,7 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
   // State for yard definition only
   const [yard, setYard] = useState(DEFAULT_YARD);
 
-  // Local state for bed positions (keyed by bed id)
+  // Local state for bed positions and orientation (keyed by bed id)
   const [bedPositions, setBedPositions] = useState(() => {
     const positions = {};
     beds.forEach((bed, idx) => {
@@ -21,6 +21,7 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
       positions[id] = {
         x: bed.x ?? 10 + idx * 120,
         y: bed.y ?? 10 + idx * 70,
+        orientation: typeof bed.orientation === 'number' ? bed.orientation : 0,
       };
     });
     return positions;
@@ -39,10 +40,12 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
         // Only update if x/y have changed in backend, or if bed is new
         if (!(id in positions) ||
           (typeof bed.x === 'number' && typeof bed.y === 'number' &&
-            (positions[id].x !== bed.x || positions[id].y !== bed.y))) {
+            (positions[id].x !== bed.x || positions[id].y !== bed.y)) ||
+          (typeof bed.orientation === 'number' && positions[id].orientation !== bed.orientation)) {
           positions[id] = {
             x: typeof bed.x === 'number' ? bed.x : 10 + idx * 120,
             y: typeof bed.y === 'number' ? bed.y : 10 + idx * 70,
+            orientation: typeof bed.orientation === 'number' ? bed.orientation : 0,
           };
         }
       });
@@ -73,6 +76,7 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
       setBedPositions((prev) => ({
         ...prev,
         [draggingBedId]: {
+          ...prev[draggingBedId],
           x: e.clientX - dragOffset.x,
           y: e.clientY - dragOffset.y,
         },
@@ -80,16 +84,43 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
     }
   };
 
+  // Rotate bed by 15 degrees and persist
+  const handleRotateBed = async (id) => {
+    setBedPositions((prev) => {
+      const newOrientation = ((prev[id]?.orientation || 0) + 15) % 360;
+      return {
+        ...prev,
+        [id]: {
+          ...prev[id],
+          orientation: newOrientation,
+        },
+      };
+    });
+    // Persist orientation to backend
+    try {
+      const { updateGardenBedPosition } = await import("../services/bedService");
+      const pos = bedPositions[id] || {};
+      await updateGardenBedPosition(id, {
+        x: pos.x,
+        y: pos.y,
+        orientation: ((bedPositions[id]?.orientation || 0) + 15) % 360,
+      });
+    } catch (err) {
+      console.error("Failed to persist bed orientation:", err);
+    }
+  };
+
+
   const handleMouseUp = async () => {
     if (draggingBedId) {
       const pos = bedPositions[draggingBedId];
       try {
-        // Persist position to backend
+        // Persist position and orientation to backend
         const { updateGardenBedPosition } = await import("../services/bedService");
-        await updateGardenBedPosition(draggingBedId, { x: pos.x, y: pos.y });
+        await updateGardenBedPosition(draggingBedId, { x: pos.x, y: pos.y, orientation: pos.orientation });
       } catch (err) {
         // Optionally, show error to user
-        console.error("Failed to persist bed position:", err);
+        console.error("Failed to persist bed position/orientation:", err);
         // Optionally, revert UI position or notify user
       }
     }
@@ -147,8 +178,8 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
         {beds.map((bed, idx) => {
           const id = bed.id || bed.bed_id;
           const pos = bedPositions[id] || { x: 10 + idx * 120, y: 10 + idx * 70 };
-          return (
-            <g key={id} style={{ pointerEvents: 'all' }}>
+           return (
+            <g key={id} style={{ pointerEvents: 'all' }} transform={`rotate(${pos.orientation || 0}, ${pos.x + (bed.width || 100) / 2}, ${pos.y + (bed.height || 50) / 2})`}>
               <rect
                 x={pos.x}
                 y={pos.y}
@@ -172,6 +203,27 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
               >
                 {bed.name}
               </text>
+              {/* Rotate button */}
+              <g onClick={() => handleRotateBed(id)} style={{ cursor: 'pointer' }}>
+                <circle
+                  cx={pos.x + (bed.width || 100) - 10}
+                  cy={pos.y + 10}
+                  r={10}
+                  fill="#ffb74d"
+                  stroke="#f57c00"
+                  strokeWidth={1}
+                />
+                <text
+                  x={pos.x + (bed.width || 100) - 10}
+                  y={pos.y + 14}
+                  textAnchor="middle"
+                  fontSize={12}
+                  fill="#6d4c00"
+                  pointerEvents="none"
+                >
+                  &#8635;
+                </text>
+              </g>
               {/* Render plants in bed */}
               {Array.isArray(bed.plants) && bed.plants.map((plant, pidx) => (
                 <circle

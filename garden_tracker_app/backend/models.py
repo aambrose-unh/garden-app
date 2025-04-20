@@ -33,6 +33,7 @@ class GardenBed(db.Model):
     notes = db.Column(db.Text)  # Optional notes about the bed
     x = db.Column(db.Float, nullable=True)  # X position in yard (SVG px or %)
     y = db.Column(db.Float, nullable=True)  # Y position in yard (SVG px or %)
+    orientation = db.Column(db.Float, nullable=True, default=0.0)  # Orientation in degrees (0 = default)
     creation_date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     last_modified = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -49,6 +50,7 @@ class GardenBed(db.Model):
             'notes': self.notes,
             'x': self.x,
             'y': self.y,
+            'orientation': self.orientation,
             'creation_date': self.creation_date.isoformat(),
             'last_modified': self.last_modified.isoformat()
         }
