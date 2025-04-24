@@ -7,6 +7,25 @@ db = SQLAlchemy()
 
 # --- Database Models ---
 
+class GardenLayout(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    layout_json = db.Column(db.Text, nullable=False)  # Store yard size, orientation, beds, etc. as JSON
+    last_modified = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    def __repr__(self):
+        return f'<GardenLayout user_id={self.user_id}>'
+
+    def to_dict(self):
+        import json
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'layout': json.loads(self.layout_json),
+            'last_modified': self.last_modified.isoformat() if self.last_modified else None,
+        }
+
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), index=True, unique=True, nullable=False)

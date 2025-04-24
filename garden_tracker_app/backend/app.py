@@ -15,7 +15,7 @@ import signal
 
 # Import db and models from models.py [CA]
 # Changed from relative (.models) to absolute (models) to work when running flask run within backend dir [REH]
-from models import db, User, GardenBed, PlantType, Planting
+from models import db, User, GardenBed, PlantType, Planting, GardenLayout
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -728,6 +728,37 @@ def delete_planting(planting_id):
         return jsonify({'message': 'Failed to delete planting record due to server error'}), 500
 
 # --- Planting Recommendations API Route ---
+
+# --- Garden Layout API Routes ---
+from flask_jwt_extended import jwt_required, get_jwt_identity
+import json
+
+@app.route('/api/layout', methods=['GET'])
+@jwt_required()
+def get_garden_layout():
+    user_id = get_jwt_identity()
+    layout = GardenLayout.query.filter_by(user_id=user_id).first()
+    if layout:
+        return jsonify(layout=layout.to_dict()), 200
+    else:
+        # Return default empty layout if not set
+        return jsonify(layout=None), 200
+
+@app.route('/api/layout', methods=['POST'])
+@jwt_required()
+def save_garden_layout():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    layout_json = json.dumps(data.get('layout', {}))
+    layout = GardenLayout.query.filter_by(user_id=user_id).first()
+    if layout:
+        layout.layout_json = layout_json
+    else:
+        layout = GardenLayout(user_id=user_id, layout_json=layout_json)
+        db.session.add(layout)
+    db.session.commit()
+    return jsonify(success=True, layout=layout.to_dict()), 200
+
 
 @app.route('/api/garden-beds/<int:bed_id>/recommendations', methods=['GET'])
 @jwt_required()  # Protect this route
