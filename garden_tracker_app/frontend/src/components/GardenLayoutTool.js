@@ -278,7 +278,7 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
                   <span>Active plants:</span>
                   <ul style={{margin: '4px 0 0 16px', padding: 0}}>
                     {hovered.data.plants.filter(p => p.is_current).map((p, i) => (
-                      <li key={p.id || p.planting_id || i}>{p.commonName || p.name || 'Plant'}</li>
+                      <li key={p.id || p.planting_id || i}>{p.plant_common_name || 'Plant'}</li>
                     ))}
                   </ul>
                 </>
@@ -286,7 +286,7 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
             </div>
           ) : hovered.type === 'plant' ? (
             <div>
-              <strong>{hovered.data.commonName || hovered.data.name || 'Plant'}</strong><br />
+              <strong>{hovered.data.plant_common_name || hovered.data.commonName || hovered.data.name || 'Plant'}</strong><br />
               {hovered.data.variety ? <>Variety: {hovered.data.variety}<br /></> : null}
               {hovered.data.datePlanted ? <>Planted: {hovered.data.datePlanted}<br /></> : null}
               {hovered.data.notes ? <>{hovered.data.notes}<br /></> : null}
