@@ -10,6 +10,9 @@ const DEFAULT_YARD = { width: 800, height: 400, shape: "rectangle" };
  * Now uses beds and plants from props. [DRY][RP][CA]
  */
 function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
+  // Tooltip state
+  const [hovered, setHovered] = useState(null); // { type: 'bed'|'plant', data, x, y }
+
   // State for yard definition only
   const [yard, setYard] = useState(DEFAULT_YARD);
 
@@ -178,7 +181,7 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
         {beds.map((bed, idx) => {
           const id = bed.id || bed.bed_id;
           const pos = bedPositions[id] || { x: 10 + idx * 120, y: 10 + idx * 70 };
-           return (
+          return (
             <g key={id} style={{ pointerEvents: 'all' }} transform={`rotate(${pos.orientation || 0}, ${pos.x + (bed.width || 100) / 2}, ${pos.y + (bed.height || 50) / 2})`}>
               <rect
                 x={pos.x}
@@ -191,6 +194,9 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
                 cursor={draggingBedId === id ? "grabbing" : "grab"}
                 onMouseDown={(e) => handleBedMouseDown(e, bed, idx)}
                 onClick={() => onBedClick && onBedClick(bed)}
+                onMouseEnter={e => setHovered({ type: 'bed', data: bed, x: e.clientX, y: e.clientY })}
+                onMouseMove={e => setHovered(prev => prev && prev.type === 'bed' ? { ...prev, x: e.clientX, y: e.clientY } : prev)}
+                onMouseLeave={() => setHovered(null)}
               />
               <text
                 x={pos.x + (bed.width || 100) / 2}
@@ -224,8 +230,8 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
                   &#8635;
                 </text>
               </g>
-              {/* Render plants in bed */}
-              {Array.isArray(bed.plants) && bed.plants.map((plant, pidx) => (
+              {/* Render only active plants in bed */}
+              {Array.isArray(bed.plants) && bed.plants.filter(p => p.is_current).map((plant, pidx) => (
                 <circle
                   key={plant.id || plant.planting_id || pidx}
                   cx={pos.x + 20 + (pidx * 20)}
@@ -236,13 +242,58 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
                   strokeWidth={1}
                   cursor="pointer"
                   onClick={() => onPlantClick && onPlantClick(plant)}
+                  onMouseEnter={e => setHovered({ type: 'plant', data: plant, x: e.clientX, y: e.clientY })}
+                  onMouseMove={e => setHovered(prev => prev && prev.type === 'plant' ? { ...prev, x: e.clientX, y: e.clientY } : prev)}
+                  onMouseLeave={() => setHovered(null)}
                 />
               ))}
             </g>
           );
         })}
       </svg>
-      {/* TODO: Instructions, drag-and-drop UI, plant visualization, click handlers for plants */}
+      {/* Tooltip */}
+      {hovered && (
+        <div
+          style={{
+            position: 'fixed',
+            left: hovered.x + 12,
+            top: hovered.y + 12,
+            background: 'rgba(255,255,240,0.98)',
+            border: '1px solid #bbb',
+            borderRadius: 6,
+            padding: '8px 12px',
+            pointerEvents: 'none',
+            zIndex: 1000,
+            minWidth: 120,
+            boxShadow: '0 2px 8px #aaa',
+            fontSize: 13
+          }}
+        >
+          {hovered.type === 'bed' ? (
+            <div>
+              <strong>{hovered.data.name}</strong><br />
+              Size: {hovered.data.width || 100}×{hovered.data.length || 50} {hovered.data.unit_measure || ''}<br />
+              {Array.isArray(hovered.data.plants) && hovered.data.plants.filter(p => p.is_current).length > 0 ? (
+                <>
+                  <span>Active plants:</span>
+                  <ul style={{margin: '4px 0 0 16px', padding: 0}}>
+                    {hovered.data.plants.filter(p => p.is_current).map((p, i) => (
+                      <li key={p.id || p.planting_id || i}>{p.plant_common_name || 'Plant'}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : <span>No active plants</span>}
+            </div>
+          ) : hovered.type === 'plant' ? (
+            <div>
+              <strong>{hovered.data.plant_common_name || hovered.data.commonName || hovered.data.name || 'Plant'}</strong><br />
+              {hovered.data.variety ? <>Variety: {hovered.data.variety}<br /></> : null}
+              {hovered.data.datePlanted ? <>Planted: {hovered.data.datePlanted}<br /></> : null}
+              {hovered.data.notes ? <>{hovered.data.notes}<br /></> : null}
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

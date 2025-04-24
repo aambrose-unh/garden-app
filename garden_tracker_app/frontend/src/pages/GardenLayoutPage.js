@@ -48,9 +48,9 @@ function GardenLayoutPage() {
   };
 
   const handlePlantClick = (plant) => {
-    // TODO: Navigate to plant details
-    alert(`Clicked plant: ${plant.commonName}`);
+    // Dialog disabled: do nothing on plant click [SF]
   };
+
 
   if (loading) return <div>Loading garden layout...</div>;
   if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
