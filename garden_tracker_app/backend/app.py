@@ -749,15 +749,31 @@ def get_garden_layout():
 def save_garden_layout():
     user_id = get_jwt_identity()
     data = request.get_json()
-    layout_json = json.dumps(data.get('layout', {}))
-    layout = GardenLayout.query.filter_by(user_id=user_id).first()
-    if layout:
-        layout.layout_json = layout_json
-    else:
-        layout = GardenLayout(user_id=user_id, layout_json=layout_json)
-        db.session.add(layout)
-    db.session.commit()
-    return jsonify(success=True, layout=layout.to_dict()), 200
+    if not data or 'layout' not in data:
+        return jsonify(success=False, message='Missing layout data'), 400
+    try:
+        new_layout = data['layout']
+        # Fetch existing layout if present
+        existing = GardenLayout.query.filter_by(user_id=user_id).first()
+        if existing:
+            try:
+                existing_layout = json.loads(existing.layout_json)
+            except Exception:
+                existing_layout = {}
+            # Merge: update only keys present in new_layout
+            merged_layout = existing_layout.copy() if isinstance(existing_layout, dict) else {}
+            for key, value in new_layout.items():
+                merged_layout[key] = value
+            existing.layout_json = json.dumps(merged_layout)
+            db.session.commit()
+            return jsonify(success=True, layout=existing.to_dict()), 200
+        else:
+            layout = GardenLayout(user_id=user_id, layout_json=json.dumps(new_layout))
+            db.session.add(layout)
+            db.session.commit()
+            return jsonify(success=True, layout=layout.to_dict()), 200
+    except Exception as e:
+        return jsonify(success=False, message=f'Error saving layout: {str(e)}'), 500
 
 
 @app.route('/api/garden-beds/<int:bed_id>/recommendations', methods=['GET'])

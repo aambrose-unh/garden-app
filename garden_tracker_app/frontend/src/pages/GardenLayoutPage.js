@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import GardenLayoutTool from "../components/GardenLayoutTool";
 import { getGardenBeds } from "../services/bedService";
 import { getPlantingsForBed } from "../services/plantingService";
+import { useLocation } from "react-router-dom"; // [CA] Add useLocation for route detection
 
 /**
  * GardenLayoutPage
@@ -13,9 +14,12 @@ function GardenLayoutPage() {
   const [bedsWithPlants, setBedsWithPlants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const location = useLocation(); // [CA] Access current location
 
   useEffect(() => {
-    const fetchBedsAndPlants = async () => {
+    // Only fetch if we're on the /layout route [IV]
+    if (location.pathname === "/layout") {
+      const fetchBedsAndPlants = async () => {
       setLoading(true);
       setError(null);
       try {
@@ -41,7 +45,8 @@ function GardenLayoutPage() {
       }
     };
     fetchBedsAndPlants();
-  }, []);
+    }
+  }, [location.pathname]); // [DRY] Re-run when route changes
 
   const handleBedClick = (bed) => {
     // Dialog disabled: do nothing on bed click [SF]

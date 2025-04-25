@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
+import { getGardenLayout, saveGardenLayout } from "../services/layoutService";
+import Snackbar from '@mui/material/Snackbar';
+import Alert from '@mui/material/Alert';
 
 // Constants for default yard size
 const DEFAULT_YARD = { width: 800, height: 400, shape: "rectangle" };
@@ -10,6 +13,10 @@ const DEFAULT_YARD = { width: 800, height: 400, shape: "rectangle" };
  * Now uses beds and plants from props. [DRY][RP][CA]
  */
 function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
+  // Snackbar state for notifications
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const showSnackbar = (message, severity = 'info') => setSnackbar({ open: true, message, severity });
+  const handleSnackbarClose = () => setSnackbar({ ...snackbar, open: false });
   // Tooltip state
   const [hovered, setHovered] = useState(null); // { type: 'bed'|'plant', data, x, y }
 
@@ -29,6 +36,38 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
     });
     return positions;
   });
+
+  // Load layout from backend on mount
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const layout = await getGardenLayout();
+        if (layout) {
+          if (layout.yard) setYard(layout.yard);
+          if (layout.bedPositions) setBedPositions(layout.bedPositions);
+        }
+        showSnackbar('Garden layout loaded.', 'success');
+      } catch (err) {
+        if (err.message && !/404|not found/i.test(err.message)) {
+          console.error("Failed to load layout:", err);
+          showSnackbar('Failed to load garden layout: ' + err.message, 'error');
+        }
+      }
+    })();
+  }, []);
+
+  // Save layout to backend when yard or bedPositions change
+  React.useEffect(() => {
+    (async () => {
+      try {
+        await saveGardenLayout({ yard, bedPositions });
+        showSnackbar('Garden layout saved.', 'success');
+      } catch (err) {
+        console.error("Failed to save layout:", err);
+        showSnackbar('Failed to save garden layout: ' + err.message, 'error');
+      }
+    })();
+  }, [yard, bedPositions]);
 
   // Track dragging state
   const [draggingBedId, setDraggingBedId] = useState(null);
@@ -59,8 +98,9 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
   // Handlers for yard definition (size/shape)
   const handleYardChange = (e) => {
     const { name, value } = e.target;
-    setYard((prev) => ({ ...prev, [name]: value }));
+    setYard((prev) => ({ ...prev, [name]: Number(value) }));
   };
+
 
   // Mouse event handlers for drag-and-drop
   const handleBedMouseDown = (e, bed, idx) => {
@@ -74,6 +114,7 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
     });
   };
 
+  // Only update local state during drag; persist only on mouse up
   const handleMouseMove = (e) => {
     if (draggingBedId) {
       setBedPositions((prev) => ({
@@ -108,8 +149,10 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
         y: pos.y,
         orientation: ((bedPositions[id]?.orientation || 0) + 15) % 360,
       });
+      showSnackbar('Bed orientation updated.', 'success');
     } catch (err) {
       console.error("Failed to persist bed orientation:", err);
+      showSnackbar('Failed to update bed orientation: ' + err.message, 'error');
     }
   };
 
@@ -117,18 +160,34 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
   const handleMouseUp = async () => {
     if (draggingBedId) {
       const pos = bedPositions[draggingBedId];
+      let bedSuccess = false, layoutSuccess = false;
       try {
-        // Persist position and orientation to backend
+        // 1. Persist position and orientation to backend (individual bed)
         const { updateGardenBedPosition } = await import("../services/bedService");
         await updateGardenBedPosition(draggingBedId, { x: pos.x, y: pos.y, orientation: pos.orientation });
+        bedSuccess = true;
+        showSnackbar('Bed position updated.', 'success');
       } catch (err) {
-        // Optionally, show error to user
         console.error("Failed to persist bed position/orientation:", err);
-        // Optionally, revert UI position or notify user
+        showSnackbar('Failed to update bed position: ' + err.message, 'error');
+      }
+      // 2. Also persist to layout JSON
+      try {
+        await saveGardenLayout({ yard, bedPositions });
+        layoutSuccess = true;
+        if (bedSuccess) {
+          showSnackbar('Layout updated.', 'success');
+        } else {
+          showSnackbar('Layout updated, but bed update failed.', 'warning');
+        }
+      } catch (err) {
+        console.error("Failed to update layout JSON after bed move:", err);
+        showSnackbar('Failed to update layout after bed move: ' + err.message, 'error');
       }
     }
     setDraggingBedId(null);
   };
+
 
   // Attach global listeners only when dragging
   React.useEffect(() => {
@@ -145,6 +204,16 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
   // Simple SVG visualization
   return (
     <div>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
       <h2>Garden Bed Layout Tool</h2>
       <div style={{ marginBottom: 16 }}>
         <label>
