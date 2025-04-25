@@ -381,12 +381,7 @@ def update_garden_bed(bed_id):
         if 'notes' in data and data['notes'] is not None:
             bed.notes = data['notes']
         # Position persistence [IV]
-        if 'x' in data and data['x'] is not None:
-            bed.x = data['x']
-        if 'y' in data and data['y'] is not None:
-            bed.y = data['y']
-        if 'orientation' in data and data['orientation'] is not None:
-            bed.orientation = data['orientation']
+
         bed.last_modified = datetime.datetime.now(datetime.timezone.utc) # Update last modified time
 
         db.session.commit()

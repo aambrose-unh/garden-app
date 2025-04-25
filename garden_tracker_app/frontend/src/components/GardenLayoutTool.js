@@ -140,46 +140,16 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
         },
       };
     });
-    // Persist orientation to backend
-    try {
-      const { updateGardenBedPosition } = await import("../services/bedService");
-      const pos = bedPositions[id] || {};
-      await updateGardenBedPosition(id, {
-        x: pos.x,
-        y: pos.y,
-        orientation: ((bedPositions[id]?.orientation || 0) + 15) % 360,
-      });
-      showSnackbar('Bed orientation updated.', 'success');
-    } catch (err) {
-      console.error("Failed to persist bed orientation:", err);
-      showSnackbar('Failed to update bed orientation: ' + err.message, 'error');
-    }
+
   };
 
 
   const handleMouseUp = async () => {
     if (draggingBedId) {
       const pos = bedPositions[draggingBedId];
-      let bedSuccess = false, layoutSuccess = false;
-      try {
-        // 1. Persist position and orientation to backend (individual bed)
-        const { updateGardenBedPosition } = await import("../services/bedService");
-        await updateGardenBedPosition(draggingBedId, { x: pos.x, y: pos.y, orientation: pos.orientation });
-        bedSuccess = true;
-        showSnackbar('Bed position updated.', 'success');
-      } catch (err) {
-        console.error("Failed to persist bed position/orientation:", err);
-        showSnackbar('Failed to update bed position: ' + err.message, 'error');
-      }
-      // 2. Also persist to layout JSON
       try {
         await saveGardenLayout({ yard, bedPositions });
-        layoutSuccess = true;
-        if (bedSuccess) {
-          showSnackbar('Layout updated.', 'success');
-        } else {
-          showSnackbar('Layout updated, but bed update failed.', 'warning');
-        }
+        showSnackbar('Layout updated.', 'success');
       } catch (err) {
         console.error("Failed to update layout JSON after bed move:", err);
         showSnackbar('Failed to update layout after bed move: ' + err.message, 'error');
