@@ -15,7 +15,7 @@ import signal
 
 # Import db and models from models.py [CA]
 # Changed from relative (.models) to absolute (models) to work when running flask run within backend dir [REH]
-from models import db, User, GardenBed, PlantType, Planting
+from models import db, User, GardenBed, PlantType, Planting, GardenLayout
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -381,12 +381,7 @@ def update_garden_bed(bed_id):
         if 'notes' in data and data['notes'] is not None:
             bed.notes = data['notes']
         # Position persistence [IV]
-        if 'x' in data and data['x'] is not None:
-            bed.x = data['x']
-        if 'y' in data and data['y'] is not None:
-            bed.y = data['y']
-        if 'orientation' in data and data['orientation'] is not None:
-            bed.orientation = data['orientation']
+
         bed.last_modified = datetime.datetime.now(datetime.timezone.utc) # Update last modified time
 
         db.session.commit()
@@ -728,6 +723,53 @@ def delete_planting(planting_id):
         return jsonify({'message': 'Failed to delete planting record due to server error'}), 500
 
 # --- Planting Recommendations API Route ---
+
+# --- Garden Layout API Routes ---
+from flask_jwt_extended import jwt_required, get_jwt_identity
+import json
+
+@app.route('/api/layout', methods=['GET'])
+@jwt_required()
+def get_garden_layout():
+    user_id = get_jwt_identity()
+    layout = GardenLayout.query.filter_by(user_id=user_id).first()
+    if layout:
+        return jsonify(layout=layout.to_dict()), 200
+    else:
+        # Return default empty layout if not set
+        return jsonify(layout=None), 200
+
+@app.route('/api/layout', methods=['POST'])
+@jwt_required()
+def save_garden_layout():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    if not data or 'layout' not in data:
+        return jsonify(success=False, message='Missing layout data'), 400
+    try:
+        new_layout = data['layout']
+        # Fetch existing layout if present
+        existing = GardenLayout.query.filter_by(user_id=user_id).first()
+        if existing:
+            try:
+                existing_layout = json.loads(existing.layout_json)
+            except Exception:
+                existing_layout = {}
+            # Merge: update only keys present in new_layout
+            merged_layout = existing_layout.copy() if isinstance(existing_layout, dict) else {}
+            for key, value in new_layout.items():
+                merged_layout[key] = value
+            existing.layout_json = json.dumps(merged_layout)
+            db.session.commit()
+            return jsonify(success=True, layout=existing.to_dict()), 200
+        else:
+            layout = GardenLayout(user_id=user_id, layout_json=json.dumps(new_layout))
+            db.session.add(layout)
+            db.session.commit()
+            return jsonify(success=True, layout=layout.to_dict()), 200
+    except Exception as e:
+        return jsonify(success=False, message=f'Error saving layout: {str(e)}'), 500
+
 
 @app.route('/api/garden-beds/<int:bed_id>/recommendations', methods=['GET'])
 @jwt_required()  # Protect this route

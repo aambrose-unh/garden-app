@@ -7,6 +7,25 @@ db = SQLAlchemy()
 
 # --- Database Models ---
 
+class GardenLayout(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, unique=True)
+    layout_json = db.Column(db.Text, nullable=False)  # Store yard size, orientation, beds, etc. as JSON
+    last_modified = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    def __repr__(self):
+        return f'<GardenLayout user_id={self.user_id}>'
+
+    def to_dict(self):
+        import json
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'layout': json.loads(self.layout_json),
+            'last_modified': self.last_modified.isoformat() if self.last_modified else None,
+        }
+
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), index=True, unique=True, nullable=False)
@@ -31,9 +50,7 @@ class GardenBed(db.Model):
     width = db.Column(db.Float, nullable=False)
     unit_measure = db.Column(db.String(20), nullable=False)  # feet or meters
     notes = db.Column(db.Text)  # Optional notes about the bed
-    x = db.Column(db.Float, nullable=True)  # X position in yard (SVG px or %)
-    y = db.Column(db.Float, nullable=True)  # Y position in yard (SVG px or %)
-    orientation = db.Column(db.Float, nullable=True, default=0.0)  # Orientation in degrees (0 = default)
+
     creation_date = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     last_modified = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -48,9 +65,7 @@ class GardenBed(db.Model):
             'width': self.width,
             'unit_measure': self.unit_measure,
             'notes': self.notes,
-            'x': self.x,
-            'y': self.y,
-            'orientation': self.orientation,
+
             'creation_date': self.creation_date.isoformat(),
             'last_modified': self.last_modified.isoformat()
         }
