@@ -24,18 +24,10 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
   const [yard, setYard] = useState(DEFAULT_YARD);
 
   // Local state for bed positions and orientation (keyed by bed id)
-  const [bedPositions, setBedPositions] = useState(() => {
-    const positions = {};
-    beds.forEach((bed, idx) => {
-      const id = bed.id || bed.bed_id;
-      positions[id] = {
-        x: bed.x ?? 10 + idx * 120,
-        y: bed.y ?? 10 + idx * 70,
-        orientation: typeof bed.orientation === 'number' ? bed.orientation : 0,
-      };
-    });
-    return positions;
-  });
+  const [bedPositions, setBedPositions] = useState({});
+
+  // Track layout loading status
+  const [layoutLoaded, setLayoutLoaded] = useState(false);
 
   // Load layout from backend on mount
   React.useEffect(() => {
@@ -45,6 +37,9 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
         if (layout) {
           if (layout.yard) setYard(layout.yard);
           if (layout.bedPositions) setBedPositions(layout.bedPositions);
+          setLayoutLoaded(true);
+        } else {
+          setLayoutLoaded(true); // No layout found, allow user to create one
         }
         showSnackbar('Garden layout loaded.', 'success');
       } catch (err) {
@@ -52,12 +47,14 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
           console.error("Failed to load layout:", err);
           showSnackbar('Failed to load garden layout: ' + err.message, 'error');
         }
+        setLayoutLoaded(true); // Even on error, allow user to interact
       }
     })();
   }, []);
 
-  // Save layout to backend when yard or bedPositions change
+  // Save layout to backend only if layoutLoaded is true
   React.useEffect(() => {
+    if (!layoutLoaded) return;
     (async () => {
       try {
         await saveGardenLayout({ yard, bedPositions });
