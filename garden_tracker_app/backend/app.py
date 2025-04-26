@@ -54,6 +54,10 @@ migrate = Migrate(app, db)
 
 jwt = JWTManager(app) # Initialize JWT Manager
 
+# --- Register plant import blueprint ---
+from plant_import import plant_import_bp
+app.register_blueprint(plant_import_bp)
+
 # --- JWT Token Revocation Setup (Example, requires proper storage) ---
 @jwt.token_in_blocklist_loader
 def check_if_token_is_revoked(jwt_header, jwt_payload):
