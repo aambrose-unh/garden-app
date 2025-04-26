@@ -1,55 +1,92 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button, TextField, Typography, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem } from '@mui/material';
+import { Box, Button, TextField, Typography, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, Select, InputLabel, FormControl } from '@mui/material';
 import gardenService from '../services/gardenService';
+import { BED_SHAPES } from '../constants/bedShapes';
 
 const GardenBedForm = ({ open, handleClose, onSuccess, bedData, isEditing = false }) => {
+  console.log('[GardenBedForm] Rendered with bedData:', bedData);
   const [formData, setFormData] = useState({
     name: '',
-    length: '',
-    width: '',
+    shape: 'rectangle',
+    shape_params: {},
     unit_measure: 'feet',
     notes: ''
   });
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (open) {
-      if (isEditing && bedData) {
-        setFormData({
-          name: bedData.name || '',
-          length: bedData.length || '',
-          width: bedData.width || '',
-          unit_measure: bedData.unit_measure || 'feet',
-          notes: bedData.notes || ''
+    console.log('[GardenBedForm] useEffect triggered. open:', open, 'isEditing:', isEditing, 'bedData:', bedData);
+    if (open && isEditing && bedData) {
+      // Ensure all required shape_params fields for the current shape are present
+      const shape = bedData.shape || 'rectangle';
+      const shapeObj = BED_SHAPES.find(s => s.value === shape);
+      let filledParams = {};
+      if (shapeObj) {
+        shapeObj.params.forEach(param => {
+          filledParams[param.name] = (bedData.shape_params && bedData.shape_params[param.name] !== undefined)
+            ? bedData.shape_params[param.name]
+            : '';
         });
-        setError('');
-      } else {
-        setFormData({
-          name: '',
-          length: '',
-          width: '',
-          unit_measure: 'feet',
-          notes: ''
-        });
-        setError('');
       }
-    } else {
+      setFormData({
+        name: bedData.name || '',
+        shape,
+        shape_params: filledParams,
+        unit_measure: bedData.unit_measure || 'feet',
+        notes: bedData.notes || ''
+      });
+      setError('');
+    } else if (open && !isEditing) {
       setFormData({
         name: '',
-        length: '',
-        width: '',
+        shape: 'rectangle',
+        shape_params: {},
         unit_measure: 'feet',
         notes: ''
       });
       setError('');
     }
-  }, [open, isEditing, bedData]);
+  }, [open, isEditing, bedData, bedData?.id]);
+
+  // Reset form if modal closes
+  useEffect(() => {
+    if (!open) {
+      setFormData({
+        name: '',
+        shape: 'rectangle',
+        shape_params: {},
+        unit_measure: 'feet',
+        notes: ''
+      });
+      setError('');
+    }
+  }, [open]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name.startsWith('shape_param_')) {
+      const paramName = name.replace('shape_param_', '');
+      setFormData(prev => ({
+        ...prev,
+        shape_params: {
+          ...prev.shape_params,
+          [paramName]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  const handleShapeChange = (e) => {
+    const shape = e.target.value;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      shape,
+      shape_params: {} // reset params on shape change
     }));
   };
 
@@ -57,14 +94,25 @@ const GardenBedForm = ({ open, handleClose, onSuccess, bedData, isEditing = fals
     e.preventDefault();
     setError('');
     try {
+      // Convert all shape_params fields to number if the param type is 'number'
+      const currentShapeObj = BED_SHAPES.find(s => s.value === formData.shape);
+      let shape_params = { ...formData.shape_params };
+      if (currentShapeObj) {
+        currentShapeObj.params.forEach(param => {
+          if (param.type === 'number' && shape_params[param.name] !== undefined && shape_params[param.name] !== '') {
+            shape_params[param.name] = Number(shape_params[param.name]);
+          }
+        });
+      }
+      const payload = { ...formData, shape_params };
       let response;
       if (isEditing) {
         if (!bedData || !bedData.id) {
           throw new Error('Cannot update bed without ID.');
         }
-        response = await gardenService.updateGardenBed(bedData.id, formData);
+        response = await gardenService.updateGardenBed(bedData.id, payload);
       } else {
-        response = await gardenService.createGardenBed(formData);
+        response = await gardenService.createGardenBed(payload);
       }
       handleClose();
       if (onSuccess) {
@@ -75,11 +123,21 @@ const GardenBedForm = ({ open, handleClose, onSuccess, bedData, isEditing = fals
     }
   };
 
+  // Get current shape's parameter definitions
+  const currentShapeObj = BED_SHAPES.find(s => s.value === formData.shape);
+  const paramFields = currentShapeObj ? currentShapeObj.params : [];
+
+
+  // Use a unique key to force React to reset the form fields when editing a different bed or shape
+  const formKey = isEditing ? `edit-${bedData?.id || ''}-${formData.shape}` : 'create';
+
+  console.log('[GardenBedForm] formData before render:', formData);
+
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>{isEditing ? 'Edit Garden Bed' : 'Add New Garden Bed'}</DialogTitle>
       <DialogContent>
-        <form id="garden-bed-form-id" onSubmit={handleSubmit}>
+        <form id="garden-bed-form-id" onSubmit={handleSubmit} key={formKey}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
             <TextField
               required
@@ -89,26 +147,50 @@ const GardenBedForm = ({ open, handleClose, onSuccess, bedData, isEditing = fals
               value={formData.name}
               onChange={handleChange}
             />
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                required
-                type="number"
-                label="Length"
-                name="length"
-                value={formData.length}
-                onChange={handleChange}
-                sx={{ flex: 1 }}
-              />
-              <TextField
-                required
-                type="number"
-                label="Width"
-                name="width"
-                value={formData.width}
-                onChange={handleChange}
-                sx={{ flex: 1 }}
-              />
-            </Box>
+            <FormControl fullWidth required sx={{ mb: 2 }}>
+              <InputLabel id="shape-label">Shape</InputLabel>
+              <Select
+                labelId="shape-label"
+                name="shape"
+                value={formData.shape}
+                label="Shape"
+                onChange={handleShapeChange}
+              >
+                {BED_SHAPES.map(shape => (
+                  <MenuItem key={shape.value} value={shape.value}>{shape.label}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {paramFields.map(param => (
+              param.type === 'select' ? (
+                <FormControl fullWidth required={param.required} key={param.name} sx={{ mb: 2 }}>
+                  <InputLabel id={`param-label-${param.name}`}>{param.label}</InputLabel>
+                  <Select
+                    labelId={`param-label-${param.name}`}
+                    name={`shape_param_${param.name}`}
+                    value={formData.shape_params[param.name] || ''}
+                    label={param.label}
+                    onChange={handleChange}
+                  >
+                    {param.options.map(opt => (
+                      <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              ) : (
+                <TextField
+                  key={param.name}
+                  required={param.required}
+                  type={param.type}
+                  label={param.label}
+                  name={`shape_param_${param.name}`}
+                  value={formData.shape_params[param.name] || ''}
+                  onChange={handleChange}
+                  fullWidth
+                  sx={{ mb: 2 }}
+                />
+              )
+            ))}
             <TextField
               select
               required
