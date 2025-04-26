@@ -114,8 +114,15 @@ function DashboardPage() {
   };
 
   const handleEditClick = (bed) => {
-    setBedToEdit(bed); 
-    setIsEditModalOpen(true); 
+    console.log('[DashboardPage] Editing bed:', bed);
+    setBedToEdit(bed); // full object
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setBedToEdit(null);
+    setIsEditModalOpen(false);
+    setIsCreateModalOpen(false);
   };
 
   const handleDeleteClick = (bedId) => {
@@ -149,12 +156,6 @@ function DashboardPage() {
   const handleOpenCreateModal = () => {
     setIsCreateModalOpen(true);
     setBedToEdit(null); // Ensure no stale edit data
-  };
-
-  const handleCloseModal = () => {
-    setIsCreateModalOpen(false);
-    setIsEditModalOpen(false);
-    setBedToEdit(null);
   };
 
   if (userLoading) {
@@ -273,7 +274,7 @@ function DashboardPage() {
       <GardenBedForm 
         open={isCreateModalOpen || isEditModalOpen} 
         handleClose={handleCloseModal} 
-        onSuccess={(bedData) => handleFormSuccess(bedData, true)}
+        onSuccess={(bedData) => handleFormSuccess(bedData, isEditModalOpen)}
         bedData={bedToEdit} 
         isEditing={isEditModalOpen} 
       />

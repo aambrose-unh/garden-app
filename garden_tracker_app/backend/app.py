@@ -234,6 +234,9 @@ def get_garden_beds():
                 'name': bed.name,
                 'length': bed.length,
                 'width': bed.width,
+                'shape': bed.shape,
+                'shape_params': bed.shape_params,
+                'unit_measure': bed.unit_measure,
                 'notes': bed.notes
             }
             for bed in garden_beds
