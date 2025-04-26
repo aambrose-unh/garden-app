@@ -27,14 +27,45 @@ This document outlines the specifications for the Garden Tracker application. Th
 \* User data (garden beds, plantings) must be associated with their account and kept private.  
 \* (Optional V1.1) Password recovery mechanism.  
 4.2. Garden Bed Management  
-\* Create Bed: Users can add a new garden bed, specifying:  
-\* Name (e.g., "North Raised Bed", "Herb Spiral")  
-\* Dimensions (e.g., Length, Width in feet/meters \- user preference setting needed)  
-\* Optional: Description/Location notes.  
-\* View Beds: Users can see a list or visual representation of all their defined garden beds.  
-\* View Bed Details: Users can select a bed to see its details (dimensions, description) and its planting history.  
-\* Edit Bed: Users can modify the name, dimensions, or description of an existing bed.  
-\* Delete Bed: Users can remove a garden bed (confirmation required). This may also remove associated planting history or require explicit confirmation for that.  
+* Create Bed: Users can add a new garden bed, specifying:  
+  * Name (e.g., "North Raised Bed", "Herb Spiral")  
+  * Shape: Users select from supported shapes: Rectangle, Circle, Pill-shaped (rounded rectangle), Rectangular C-shape (rectangle with a section missing from the middle of one side)
+    * For C-shape: User specifies which side is missing (top, bottom, left, right) and the size of the missing section (must be less than the corresponding side)
+  * Dimensions/Parameters: Relevant to the selected shape (e.g., width/height for rectangle, radius for circle, etc.)
+  * Optional: Description/Location notes.
+* View Beds: Users can see a list or visual representation of all their defined garden beds.
+* View Bed Details: Users can select a bed to see its details (shape, dimensions/parameters, description) and its planting history.
+* Edit Bed: Users can modify the name, shape, dimensions, or description of an existing bed.
+* Delete Bed: Users can remove a garden bed (confirmation required). This may also remove associated planting history or require explicit confirmation for that.
+
+**Garden Bed Shapes Specification**
+
+- **Supported Shapes:**
+  - Rectangle
+  - Circle
+  - Pill-shaped (rounded rectangle)
+  - Rectangular C-shape (rectangle with a section missing from the middle of one side)
+
+- **Rectangular C-shape Definition:**
+  - A rectangle with a rectangular section removed from the center of one of its sides.
+  - User specifies:
+    - Which side is missing: `top`, `bottom`, `left`, or `right`
+    - The width and height of the missing section (must be less than the corresponding side)
+
+- **Validation:**
+  - Shape must be one of the supported types.
+  - For C-shape, the missing section must fit within the rectangle and be smaller than the corresponding side.
+  - All shape parameters must be present and valid for the selected shape.
+
+- **API & UI Impact:**
+  - Endpoints for creating, updating, and retrieving garden beds must support the `shape` and `shape_params` fields.
+  - API must validate shape and parameters as described above.
+  - UI for garden bed creation/editing must allow shape selection and dynamically show relevant parameter inputs based on the selected shape.
+  - Visualization logic must render all supported shapes accurately, including the rectangular C-shape.
+
+- **Testing:**
+  - Add or update tests for backend and frontend to cover all supported shapes, including edge cases for the rectangular C-shape.
+
 4.3. Plant Information Management  
 \* The application will maintain a database of common garden plants.  
 \* Each plant entry should include:  
@@ -93,7 +124,13 @@ This document outlines the specifications for the Garden Tracker application. Th
 **7\. Data Model (High-Level Schema)**
 
 * **Users:** user\_id (PK), email, password\_hash, creation\_date, last\_login, preferred\_units (e.g., 'metric'/'imperial')  
-* **GardenBeds:** bed\_id (PK), user\_id (FK), name, length, width, unit\_measure, description, creation\_date  
+* **GardenBeds:** bed\_id (PK), user\_id (FK), name, shape, shape\_params (JSON), unit\_measure, description, creation\_date  
+  - `shape`: enum ('rectangle', 'circle', 'pill', 'c-rectangle')
+  - `shape\_params`: object with shape-specific parameters:
+    - Rectangle: `{ width, height }`
+    - Circle: `{ radius }`
+    - Pill: `{ width, height, border\_radius }`
+    - C-rectangle: `{ width, height, missing\_side, missing\_width, missing\_height }`
 * **PlantTypes:** plant\_type\_id (PK), common\_name, scientific\_name, description, avg\_height, avg\_spread, rotation\_family, notes  
 * **Plantings:** planting\_id (PK), bed\_id (FK), plant\_type\_id (FK), year, season (e.g., Spring, Summer, Fall, Full), date\_planted, notes, is\_current (Boolean flag)  
 * **(Potential Future Table) RotationRules:** rule\_id (PK), preceding\_family, succeeding\_family, recommendation\_level (e.g., 'Good', 'Avoid', 'Neutral'), reason
