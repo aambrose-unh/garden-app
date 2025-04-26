@@ -1,0 +1,21 @@
+common_name,scientific_name,rotation_family,avg_height,avg_spread,description,notes
+Tomato,Solanum lycopersicum,Nightshade,48,24,Red or yellow fruit,Indeterminate/Determinate
+Cucumber,Cucumis sativus,Gourd,72,12,Climbing vine,Needs trellis
+Carrot,Daucus carota,Umbel,12,2,Orange root,Loose soil
+Lettuce,Lactuca sativa,Aster,10,8,Leafy green,Prefers cool weather
+Spinach,Spinacia oleracea,Amaranth,8,6,Leafy green,Prefers cool weather
+Bell Pepper,Capsicum annuum,Nightshade,24,18,Green/red/yellow fruit,Needs warmth
+Eggplant,Solanum melongena,Nightshade,30,24,Purple fruit,Needs warmth
+Zucchini,Cucurbita pepo,Gourd,36,36,Green squash,Heavy feeder
+Broccoli,Brassica oleracea,Brassica,24,18,Green florets,Prefers cool weather
+Cabbage,Brassica oleracea,Brassica,18,18,Leafy head,Prefers cool weather
+Kale,Brassica oleracea,Brassica,24,18,Leafy green,Cold hardy
+Onion,Allium cepa,Allium,18,3,Bulb vegetable,Long season
+Garlic,Allium sativum,Allium,18,3,Bulb vegetable,Plant in fall
+Pea,Pisum sativum,Legume,24,6,Vining or bush,Prefers cool weather
+Bean,Phaseolus vulgaris,Legume,24,12,Bush or pole,Fixes nitrogen
+Corn,Zea mays,Grass,96,12,Tall cereal,Heavy feeder
+Pumpkin,Cucurbita pepo,Gourd,24,72,Large orange fruit,Needs space
+Watermelon,Citrullus lanatus,Gourd,18,72,Large fruit,Needs heat
+Strawberry,Fragaria × ananassa,Rosaceae,8,18,Red berry,Perennial
+Potato,Solanum tuberosum,Nightshade,24,24,Tuber,Plant in spring

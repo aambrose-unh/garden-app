@@ -11,6 +11,7 @@ import {
 } from '@mui/icons-material';
 import { getAllPlantTypes } from '../services/plantService';
 import PlantForm from '../components/PlantForm'; // Import the form component
+import PlantImportModal from '../components/PlantImportModal';
 
 function PlantListPage() {
   const [plants, setPlants] = useState([]);
@@ -20,6 +21,7 @@ function PlantListPage() {
   // Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [plantToEdit, setPlantToEdit] = useState(null);
 
   useEffect(() => {
@@ -57,6 +59,9 @@ function PlantListPage() {
     setPlantToEdit(null);
   };
 
+  const handleOpenImportModal = () => setIsImportModalOpen(true);
+  const handleCloseImportModal = () => setIsImportModalOpen(false);
+
   const handleFormSuccess = (updatedPlant, wasEditing) => {
     // TODO: Implement proper state update or refetch
     // For now, just log and maybe refetch as a simple approach
@@ -86,13 +91,20 @@ function PlantListPage() {
       </Typography>
 
       {/* Add New Plant Button [AC][CA] */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 2 }}>
         <Button 
           variant="contained" 
           startIcon={<AddIcon />} 
           onClick={handleOpenCreateModal} // Connect button [AC]
         >
           Add New Plant
+        </Button>
+        <Button 
+          variant="outlined"
+          color="primary"
+          onClick={handleOpenImportModal}
+        >
+          Import from CSV
         </Button>
       </Box>
 
@@ -139,6 +151,29 @@ function PlantListPage() {
         </List>
       )}
       
+      {/* Plant Import Modal */}
+      <PlantImportModal
+        open={isImportModalOpen}
+        handleClose={handleCloseImportModal}
+        onSuccess={() => {
+          // After import, refresh plant list
+          const fetchPlants = async () => {
+            try {
+              setLoading(true);
+              setError('');
+              const data = await getAllPlantTypes();
+              setPlants(data);
+            } catch (err) {
+              setError(err.message || 'Failed to reload plant data after import.');
+            } finally {
+              setLoading(false);
+            }
+          };
+          fetchPlants();
+          handleCloseImportModal();
+        }}
+      />
+
       {/* Plant Form Modal */}
       <PlantForm 
         open={isCreateModalOpen || isEditModalOpen}
