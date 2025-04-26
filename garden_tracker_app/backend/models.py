@@ -46,8 +46,10 @@ class GardenBed(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
-    length = db.Column(db.Float, nullable=False)
-    width = db.Column(db.Float, nullable=False)
+    shape = db.Column(db.String(20), nullable=False)  # rectangle, circle, pill, c-rectangle
+    shape_params = db.Column(db.JSON, nullable=False)  # shape-specific parameters
+    length = db.Column(db.Float, nullable=True)  # Deprecated: use shape_params instead
+    width = db.Column(db.Float, nullable=True)   # Deprecated: use shape_params instead
     unit_measure = db.Column(db.String(20), nullable=False)  # feet or meters
     notes = db.Column(db.Text)  # Optional notes about the bed
 
@@ -61,11 +63,12 @@ class GardenBed(db.Model):
         return {
             'id': self.id,
             'name': self.name,
-            'length': self.length,
-            'width': self.width,
+            'shape': self.shape,
+            'shape_params': self.shape_params,
+            'length': self.length,  # Deprecated
+            'width': self.width,    # Deprecated
             'unit_measure': self.unit_measure,
             'notes': self.notes,
-
             'creation_date': self.creation_date.isoformat(),
             'last_modified': self.last_modified.isoformat()
         }
