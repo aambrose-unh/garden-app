@@ -168,6 +168,157 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
     }
   });
 
+  // Helper to render the correct SVG shape for a bed
+  function renderBedShape(bed, pos, isDragging, idx) {
+    const { shape, shape_params = {}, name } = bed;
+    const fill = "#b2dfdb";
+    const stroke = "#00695c";
+    const strokeWidth = 2;
+    const cursor = isDragging ? "grabbing" : "grab";
+    // Rectangle fallback
+    if (!shape || shape === "rectangle") {
+      const width = shape_params.width || bed.width || 100;
+      const height = shape_params.height || bed.height || 50;
+      return (
+        <rect
+          x={pos.x}
+          y={pos.y}
+          width={width}
+          height={height}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          cursor={cursor}
+          onMouseDown={e => handleBedMouseDown(e, bed, idx)}
+          onClick={() => onBedClick && onBedClick(bed)}
+          onMouseEnter={e => setHovered({ type: 'bed', data: bed, x: e.clientX, y: e.clientY })}
+          onMouseMove={e => setHovered(prev => prev && prev.type === 'bed' ? { ...prev, x: e.clientX, y: e.clientY } : prev)}
+          onMouseLeave={() => setHovered(null)}
+          rx={shape === "pill" ? (shape_params.height || bed.height || 50) / 2 : 0}
+          ry={shape === "pill" ? (shape_params.height || bed.height || 50) / 2 : 0}
+        />
+      );
+    }
+    if (shape === "circle") {
+      const radius = shape_params.radius || 40;
+      return (
+        <circle
+          cx={pos.x + radius}
+          cy={pos.y + radius}
+          r={radius}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          cursor={cursor}
+          onMouseDown={e => handleBedMouseDown(e, bed, idx)}
+          onClick={() => onBedClick && onBedClick(bed)}
+          onMouseEnter={e => setHovered({ type: 'bed', data: bed, x: e.clientX, y: e.clientY })}
+          onMouseMove={e => setHovered(prev => prev && prev.type === 'bed' ? { ...prev, x: e.clientX, y: e.clientY } : prev)}
+          onMouseLeave={() => setHovered(null)}
+        />
+      );
+    }
+    if (shape === "pill") {
+      // Pill: rectangle with full height corner radius
+      const width = shape_params.width || bed.width || 100;
+      const height = shape_params.height || bed.height || 40;
+      const rx = height / 2;
+      return (
+        <rect
+          x={pos.x}
+          y={pos.y}
+          width={width}
+          height={height}
+          rx={rx}
+          ry={rx}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          cursor={cursor}
+          onMouseDown={e => handleBedMouseDown(e, bed, idx)}
+          onClick={() => onBedClick && onBedClick(bed)}
+          onMouseEnter={e => setHovered({ type: 'bed', data: bed, x: e.clientX, y: e.clientY })}
+          onMouseMove={e => setHovered(prev => prev && prev.type === 'bed' ? { ...prev, x: e.clientX, y: e.clientY } : prev)}
+          onMouseLeave={() => setHovered(null)}
+        />
+      );
+    }
+    if (shape === "c-rectangle") {
+      // C-rectangle: use backend params: width, height, missing_side, missing_width, missing_height
+      const W = shape_params.width || 100;
+      const H = shape_params.height || 80;
+      const missingSide = shape_params.missing_side || "right";
+      const MW = shape_params.missing_width || 40;
+      const MH = shape_params.missing_height || 40;
+      const x = pos.x, y = pos.y;
+      // Center the gap along the missing side
+      let gapX = x, gapY = y;
+      if (missingSide === "right") {
+        gapX = x + W - MW;
+        gapY = y + (H - MH) / 2;
+      } else if (missingSide === "left") {
+        gapX = x;
+        gapY = y + (H - MH) / 2;
+      } else if (missingSide === "top") {
+        gapX = x + (W - MW) / 2;
+        gapY = y;
+      } else if (missingSide === "bottom") {
+        gapX = x + (W - MW) / 2;
+        gapY = y + H - MH;
+      }
+      // SVG: use two <rect>s, one for the full bed, one for the gap, with gap as white to "erase" that part
+      return (
+        <g>
+          <rect
+            x={x}
+            y={y}
+            width={W}
+            height={H}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            cursor={cursor}
+            onMouseDown={e => handleBedMouseDown(e, bed, idx)}
+            onClick={() => onBedClick && onBedClick(bed)}
+            onMouseEnter={e => setHovered({ type: 'bed', data: bed, x: e.clientX, y: e.clientY })}
+            onMouseMove={e => setHovered(prev => prev && prev.type === 'bed' ? { ...prev, x: e.clientX, y: e.clientY } : prev)}
+            onMouseLeave={() => setHovered(null)}
+          />
+          <rect
+            x={gapX}
+            y={gapY}
+            width={MW}
+            height={MH}
+            fill="#fff"
+            stroke="#fff"
+            strokeWidth={0}
+            pointerEvents="none"
+          />
+        </g>
+      );
+    }
+    // Fallback: rectangle
+    const width = bed.width || 100;
+    const height = bed.height || 50;
+    return (
+      <rect
+        x={pos.x}
+        y={pos.y}
+        width={width}
+        height={height}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        cursor={cursor}
+        onMouseDown={e => handleBedMouseDown(e, bed, idx)}
+        onClick={() => onBedClick && onBedClick(bed)}
+        onMouseEnter={e => setHovered({ type: 'bed', data: bed, x: e.clientX, y: e.clientY })}
+        onMouseMove={e => setHovered(prev => prev && prev.type === 'bed' ? { ...prev, x: e.clientX, y: e.clientY } : prev)}
+        onMouseLeave={() => setHovered(null)}
+      />
+    );
+  }
+
   // Simple SVG visualization
   return (
     <div>
@@ -219,21 +370,7 @@ function GardenLayoutTool({ beds = [], onBedClick, onPlantClick }) {
           const pos = bedPositions[id] || { x: 10 + idx * 120, y: 10 + idx * 70 };
           return (
             <g key={id} style={{ pointerEvents: 'all' }} transform={`rotate(${pos.orientation || 0}, ${pos.x + (bed.width || 100) / 2}, ${pos.y + (bed.height || 50) / 2})`}>
-              <rect
-                x={pos.x}
-                y={pos.y}
-                width={bed.width || 100}
-                height={bed.height || 50}
-                fill="#b2dfdb"
-                stroke="#00695c"
-                strokeWidth={2}
-                cursor={draggingBedId === id ? "grabbing" : "grab"}
-                onMouseDown={(e) => handleBedMouseDown(e, bed, idx)}
-                onClick={() => onBedClick && onBedClick(bed)}
-                onMouseEnter={e => setHovered({ type: 'bed', data: bed, x: e.clientX, y: e.clientY })}
-                onMouseMove={e => setHovered(prev => prev && prev.type === 'bed' ? { ...prev, x: e.clientX, y: e.clientY } : prev)}
-                onMouseLeave={() => setHovered(null)}
-              />
+              {renderBedShape(bed, pos, draggingBedId === id, idx)}
               <text
                 x={pos.x + (bed.width || 100) / 2}
                 y={pos.y + (bed.height || 50) / 2}
