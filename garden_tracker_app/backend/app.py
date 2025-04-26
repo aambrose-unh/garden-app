@@ -16,6 +16,7 @@ import signal
 # Import db and models from models.py [CA]
 # Changed from relative (.models) to absolute (models) to work when running flask run within backend dir [REH]
 from models import db, User, GardenBed, PlantType, Planting, GardenLayout
+from validators import validate_bed_shape_and_params  # [DRY][SF]
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -257,35 +258,35 @@ def create_garden_bed():
     try:
         data = request.get_json()
         
-        # Validate required fields
-        if not data or not all(key in data for key in ['name', 'length', 'width', 'unit_measure']):
+        # Validate required fields for new model [IV][SF]
+        required_fields = ["name", "shape", "shape_params", "unit_measure"]
+        if not data or not all(key in data for key in required_fields):
             return jsonify({
                 "message": "Missing required fields",
-                "required_fields": ["name", "length", "width", "unit_measure"]
+                "required_fields": required_fields
             }), 400
-        
+        is_valid, err = validate_bed_shape_and_params(data["shape"], data["shape_params"])
+        if not is_valid:
+            return jsonify({"message": f"Invalid shape/params: {err}"}), 400
         # Create new garden bed
         new_bed = GardenBed(
             name=data['name'],
-            length=float(data['length']),
-            width=float(data['width']),
+            shape=data['shape'],
+            shape_params=data['shape_params'],
             unit_measure=data['unit_measure'],
             notes=data.get('notes', ''),
             user_id=current_user_id
         )
-        
         db.session.add(new_bed)
         db.session.commit()
-        
         logger.info("Created new garden bed for user %s", current_user_id)
-        
         return jsonify({
             "message": "Garden bed created successfully",
             "garden_bed": {
                 "id": new_bed.id,
                 "name": new_bed.name,
-                "length": new_bed.length,
-                "width": new_bed.width,
+                "shape": new_bed.shape,
+                "shape_params": new_bed.shape_params,
                 "unit_measure": new_bed.unit_measure,
                 "notes": new_bed.notes,
                 "created_at": new_bed.creation_date.isoformat()
@@ -372,22 +373,21 @@ def update_garden_bed(bed_id):
         if not data:
             return jsonify({"message": "No input data provided"}), 400
 
-        # Update fields if they are provided in the request [IV]
-        # Only update fields if present and not None [REH][IV]
+        # Update new fields if present [IV]
         if 'name' in data and data['name'] is not None:
             bed.name = data['name']
-        if 'length' in data and data['length'] is not None:
-            bed.length = data['length']
-        if 'width' in data and data['width'] is not None:
-            bed.width = data['width']
+        if 'shape' in data and data['shape'] is not None:
+            bed.shape = data['shape']
+        if 'shape_params' in data and data['shape_params'] is not None:
+            is_valid, err = validate_bed_shape_and_params(data['shape'], data['shape_params'])
+            if not is_valid:
+                return jsonify({"message": f"Invalid shape/params: {err}"}), 400
+            bed.shape_params = data['shape_params']
         if 'unit_measure' in data and data['unit_measure'] is not None:
             bed.unit_measure = data['unit_measure']
         if 'notes' in data and data['notes'] is not None:
             bed.notes = data['notes']
-        # Position persistence [IV]
-
         bed.last_modified = datetime.datetime.now(datetime.timezone.utc) # Update last modified time
-
         db.session.commit()
         logger.info(f"Garden bed ID {bed_id} updated successfully by user {current_user_id_int}")
         return jsonify(bed.to_dict()), 200
