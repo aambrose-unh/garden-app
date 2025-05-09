@@ -1,7 +1,7 @@
 # Backend for Garden Tracker App
 
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 import datetime
@@ -12,6 +12,8 @@ from flask_cors import CORS
 import logging
 from logging.handlers import RotatingFileHandler
 import signal
+import json
+import io
 
 # Import db and models from models.py [CA]
 # Changed from relative (.models) to absolute (models) to work when running flask run within backend dir [REH]
@@ -880,6 +882,196 @@ def add_planting_to_bed(bed_id):
         db.session.rollback()
         logger.error(f"Error adding planting to bed {bed_id}: {str(e)}")
         return jsonify({'message': 'Failed to add planting record due to server error'}), 500
+
+# Data Management API Routes
+@app.route('/api/data/export', methods=['GET'])
+@jwt_required()
+def export_user_data():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    plant_types = PlantType.query.all()
+    garden_beds = GardenBed.query.filter_by(user_id=current_user_id).all()
+    plantings = Planting.query.filter_by(user_id=current_user_id).all()
+    garden_layout = GardenLayout.query.filter_by(user_id=current_user_id).first()
+
+    export_data = {
+        "user_preferences": user.to_dict().get('preferences', {}),
+        "plant_types": [pt.to_dict() for pt in plant_types],
+        "garden_beds": [gb.to_dict() for gb in garden_beds],
+        "plantings": [p.to_dict() for p in plantings],
+        "garden_layout": garden_layout.to_dict() if garden_layout else {}
+    }
+
+    # Create an in-memory file for the JSON data
+    str_io = io.StringIO()
+    json.dump(export_data, str_io, indent=4)
+    mem_file = io.BytesIO()
+    mem_file.write(str_io.getvalue().encode('utf-8'))
+    mem_file.seek(0)
+    str_io.close()
+
+    return send_file(
+        mem_file,
+        as_attachment=True,
+        download_name='garden_data_export.json',
+        mimetype='application/json'
+    )
+
+@app.route('/api/data/import', methods=['POST'])
+@jwt_required()
+def import_user_data():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    if 'file' not in request.files:
+        return jsonify({"msg": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"msg": "No selected file"}), 400
+
+    if file and file.filename.endswith('.json'):
+        try:
+            imported_data = json.load(file)
+        except json.JSONDecodeError:
+            return jsonify({"msg": "Invalid JSON file"}), 400
+
+        # Basic validation of top-level keys
+        expected_keys = ["user_preferences", "plant_types", "garden_beds", "plantings", "garden_layout"]
+        if not all(key in imported_data for key in expected_keys):
+            return jsonify({"msg": "JSON file missing required top-level keys"}), 400
+
+        # --- Begin Transaction (Optional but recommended for atomicity) ---
+        # For simplicity, direct db operations are shown. Consider wrapping in a transaction.
+        try:
+            # 1. Clear existing user-specific data (except PlantTypes which are global/shared)
+            Planting.query.filter_by(user_id=current_user_id).delete()
+            GardenLayout.query.filter_by(user_id=current_user_id).delete()
+            GardenBed.query.filter_by(user_id=current_user_id).delete()
+            # db.session.commit() # Commit deletions
+
+            # 2. Import User Preferences
+            if 'user_preferences' in imported_data and isinstance(imported_data['user_preferences'], dict):
+                user.preferences = json.dumps(imported_data['user_preferences'])
+                # db.session.add(user) # user is already in session
+
+            # 3. Import Plant Types (Update existing by common_name or create new)
+            plant_type_id_map = {}
+            for pt_data in imported_data.get("plant_types", []):
+                old_id = pt_data.get('id')
+                common_name = pt_data.get('common_name')
+                if not common_name:
+                    continue # Skip if no common_name
+                
+                plant_type = PlantType.query.filter_by(common_name=common_name).first()
+                if plant_type:
+                    # Update existing plant type if necessary
+                    plant_type.scientific_name = pt_data.get('scientific_name', plant_type.scientific_name)
+                    plant_type.description = pt_data.get('description', plant_type.description)
+                    plant_type.image_url = pt_data.get('image_url', plant_type.image_url)
+                    plant_type.category = pt_data.get('category', plant_type.category)
+                    plant_type.sun_requirements = pt_data.get('sun_requirements', plant_type.sun_requirements)
+                    plant_type.water_requirements = pt_data.get('water_requirements', plant_type.water_requirements)
+                    plant_type.soil_preferences = pt_data.get('soil_preferences', plant_type.soil_preferences)
+                    plant_type.spacing_recommendations = pt_data.get('spacing_recommendations', plant_type.spacing_recommendations)
+                    plant_type.companion_plants = pt_data.get('companion_plants', plant_type.companion_plants)
+                    plant_type.avoid_plants = pt_data.get('avoid_plants', plant_type.avoid_plants)
+                    plant_type.planting_tips = pt_data.get('planting_tips', plant_type.planting_tips)
+                else:
+                    plant_type = PlantType(
+                        common_name=common_name,
+                        scientific_name=pt_data.get('scientific_name'),
+                        description=pt_data.get('description'),
+                        image_url=pt_data.get('image_url'),
+                        category=pt_data.get('category'),
+                        sun_requirements=pt_data.get('sun_requirements'),
+                        water_requirements=pt_data.get('water_requirements'),
+                        soil_preferences=pt_data.get('soil_preferences'),
+                        spacing_recommendations=pt_data.get('spacing_recommendations'),
+                        companion_plants=pt_data.get('companion_plants'),
+                        avoid_plants=pt_data.get('avoid_plants'),
+                        planting_tips=pt_data.get('planting_tips')
+                    )
+                    db.session.add(plant_type)
+                db.session.flush() # To get new plant_type.id if it's new
+                if old_id is not None:
+                    plant_type_id_map[old_id] = plant_type.id
+            
+            # 4. Import Garden Beds
+            garden_bed_id_map = {}
+            for gb_data in imported_data.get("garden_beds", []):
+                old_id = gb_data.get('id')
+                new_bed = GardenBed(
+                    user_id=current_user_id,
+                    name=gb_data.get('name', 'Unnamed Bed'),
+                    shape=gb_data.get('shape', 'rectangle'),
+                    shape_params=json.dumps(gb_data.get('shape_params', {})),
+                    notes=gb_data.get('notes')
+                )
+                db.session.add(new_bed)
+                db.session.flush() # To get new_bed.id
+                if old_id is not None:
+                    garden_bed_id_map[old_id] = new_bed.id
+
+            # 5. Import Plantings
+            for p_data in imported_data.get("plantings", []):
+                old_plant_type_id = p_data.get('plant_type_id')
+                old_bed_id = p_data.get('bed_id')
+
+                new_plant_type_id = plant_type_id_map.get(old_plant_type_id)
+                new_bed_id = garden_bed_id_map.get(old_bed_id)
+
+                if new_plant_type_id is None or new_bed_id is None:
+                    logging.warning(f"Skipping planting due to missing mapped ID: old_plant_type_id={old_plant_type_id}, old_bed_id={old_bed_id}")
+                    continue
+
+                new_planting = Planting(
+                    user_id=current_user_id,
+                    plant_type_id=new_plant_type_id,
+                    bed_id=new_bed_id,
+                    date_planted=datetime.datetime.fromisoformat(p_data['date_planted']) if p_data.get('date_planted') else None,
+                    notes=p_data.get('notes'),
+                    quantity=p_data.get('quantity', 1),
+                    projected_harvest_date=datetime.datetime.fromisoformat(p_data['projected_harvest_date']) if p_data.get('projected_harvest_date') else None,
+                    x_coordinate=p_data.get('x_coordinate'),
+                    y_coordinate=p_data.get('y_coordinate')
+                )
+                db.session.add(new_planting)
+
+            # 6. Import Garden Layout
+            layout_data = imported_data.get("garden_layout")
+            if layout_data and isinstance(layout_data.get('layout_json'), dict):
+                raw_layout_json = layout_data['layout_json']
+                # Attempt to update bed IDs within layout_json
+                # This is a placeholder: assumes layout_json.beds is a list of dicts, each with an 'id'
+                if 'beds' in raw_layout_json and isinstance(raw_layout_json['beds'], list):
+                    for bed_item in raw_layout_json['beds']:
+                        if isinstance(bed_item, dict) and 'id' in bed_item:
+                            old_bed_item_id = bed_item['id']
+                            if old_bed_item_id in garden_bed_id_map:
+                                bed_item['id'] = garden_bed_id_map[old_bed_item_id]
+                
+                new_layout = GardenLayout(
+                    user_id=current_user_id,
+                    name=layout_data.get('name', 'Imported Layout'),
+                    layout_json=json.dumps(raw_layout_json)
+                )
+                db.session.add(new_layout)
+
+            db.session.commit()
+            return jsonify({"msg": "Data imported successfully"}), 200
+
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error during import: {e}")
+            return jsonify({"msg": f"Error during import: {str(e)}"}), 500
+    else:
+        return jsonify({"msg": "Invalid file type. Please upload a .json file"}), 400
+
 
 if __name__ == '__main__':
     # Ensure app context is available for db operations if needed at startup
