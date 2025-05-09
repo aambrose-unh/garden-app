@@ -1,7 +1,7 @@
 # Backend for Garden Tracker App
 
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 import datetime
@@ -12,6 +12,8 @@ from flask_cors import CORS
 import logging
 from logging.handlers import RotatingFileHandler
 import signal
+import json
+import io
 
 # Import db and models from models.py [CA]
 # Changed from relative (.models) to absolute (models) to work when running flask run within backend dir [REH]
@@ -880,6 +882,211 @@ def add_planting_to_bed(bed_id):
         db.session.rollback()
         logger.error(f"Error adding planting to bed {bed_id}: {str(e)}")
         return jsonify({'message': 'Failed to add planting record due to server error'}), 500
+
+# Data Management API Routes
+@app.route('/api/data/export', methods=['GET'])
+@jwt_required()
+def export_user_data():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    plant_types = PlantType.query.all()
+    garden_beds = GardenBed.query.filter_by(user_id=current_user_id).all()
+    # plantings = Planting.query.filter_by(user_id=current_user_id).all() # Incorrect: Planting has no direct user_id
+    plantings = db.session.query(Planting).join(GardenBed, Planting.bed_id == GardenBed.id).filter(GardenBed.user_id == current_user_id).all()
+    garden_layout = GardenLayout.query.filter_by(user_id=current_user_id).first()
+
+    export_data = {
+        "user_preferences": user.to_dict().get('preferences', {}),
+        "plant_types": [pt.to_dict() for pt in plant_types],
+        "garden_beds": [gb.to_dict() for gb in garden_beds],
+        "plantings": [p.to_dict() for p in plantings],
+        "garden_layout": garden_layout.to_dict() if garden_layout else {}
+    }
+
+    # Create an in-memory file for the JSON data
+    str_io = io.StringIO()
+    json.dump(export_data, str_io, indent=4)
+    mem_file = io.BytesIO()
+    mem_file.write(str_io.getvalue().encode('utf-8'))
+    mem_file.seek(0)
+    str_io.close()
+
+    return send_file(
+        mem_file,
+        as_attachment=True,
+        download_name='garden_data_export.json',
+        mimetype='application/json'
+    )
+
+@app.route('/api/data/import', methods=['POST'])
+@jwt_required()
+def import_user_data():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
+
+    if 'file' not in request.files:
+        return jsonify({"msg": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"msg": "No selected file"}), 400
+
+    if file and file.filename.endswith('.json'):
+        try:
+            imported_data = json.load(file)
+        except json.JSONDecodeError:
+            return jsonify({"msg": "Invalid JSON file"}), 400
+
+        # Basic validation of top-level keys
+        expected_keys = ["user_preferences", "plant_types", "garden_beds", "plantings", "garden_layout"]
+        if not all(key in imported_data for key in expected_keys):
+            return jsonify({"msg": "JSON file missing required top-level keys"}), 400
+
+        # --- Begin Transaction (Optional but recommended for atomicity) ---
+        # For simplicity, direct db operations are shown. Consider wrapping in a transaction.
+        try:
+            # 1. Clear existing user-specific data (except PlantTypes which are global/shared)
+            # Planting.query.filter_by(user_id=current_user_id).delete() # Incorrect
+            # db.session.query(Planting).join(GardenBed, Planting.bed_id == GardenBed.id).filter(GardenBed.user_id == current_user_id).delete(synchronize_session=False) # Causes error with joined delete
+            # Fetch IDs of plantings to delete for the current user
+            planting_ids_to_delete = [
+                p.id for p in db.session.query(Planting.id)
+                .join(GardenBed, Planting.bed_id == GardenBed.id)
+                .filter(GardenBed.user_id == current_user_id)
+                .all()
+            ]
+            if planting_ids_to_delete:
+                Planting.query.filter(Planting.id.in_(planting_ids_to_delete)).delete(synchronize_session=False)
+
+            GardenLayout.query.filter_by(user_id=current_user_id).delete()
+            GardenBed.query.filter_by(user_id=current_user_id).delete()
+            # db.session.commit() # Commit deletions
+
+            # 2. Import User Preferences
+            if 'user_preferences' in imported_data and isinstance(imported_data['user_preferences'], dict):
+                user.preferences = json.dumps(imported_data['user_preferences'])
+                # db.session.add(user) # user is already in session
+
+            # 3. Import Plant Types (Update existing by common_name or create new)
+            plant_type_id_map = {}
+            for pt_data in imported_data.get("plant_types", []):
+                old_id = pt_data.get('id')
+                common_name = pt_data.get('common_name')
+                if not common_name:
+                    continue # Skip if no common_name
+                
+                plant_type = PlantType.query.filter_by(common_name=common_name).first()
+                if plant_type:
+                    # Update existing plant type if necessary
+                    plant_type.scientific_name = pt_data.get('scientific_name', plant_type.scientific_name)
+                    plant_type.description = pt_data.get('description', plant_type.description) # Re-added this line
+                    plant_type.avg_height = pt_data.get('avg_height', plant_type.avg_height)
+                    plant_type.avg_spread = pt_data.get('avg_spread', plant_type.avg_spread)
+                    plant_type.rotation_family = pt_data.get('rotation_family', plant_type.rotation_family)
+                    plant_type.notes = pt_data.get('notes', plant_type.notes)
+                else:
+                    plant_type = PlantType(
+                        common_name=common_name,
+                        scientific_name=pt_data.get('scientific_name'),
+                        description=pt_data.get('description'), # Re-added this line
+                        avg_height=pt_data.get('avg_height'),
+                        avg_spread=pt_data.get('avg_spread'),
+                        rotation_family=pt_data.get('rotation_family'),
+                        notes=pt_data.get('notes')
+                    )
+                    db.session.add(plant_type)
+                db.session.flush() # To get new plant_type.id if it's new
+                if old_id is not None:
+                    plant_type_id_map[old_id] = plant_type.id
+            
+            # 4. Import Garden Beds
+            garden_bed_id_map = {}
+            for gb_data in imported_data.get("garden_beds", []):
+                old_id = gb_data.get('id')
+                new_bed = GardenBed(
+                    user_id=current_user_id,
+                    name=gb_data.get('name', 'Unnamed Bed'),
+                    shape=gb_data.get('shape', 'rectangle'),
+                    shape_params=gb_data.get('shape_params', {}), # Pass dict directly for JSON field
+                    unit_measure=gb_data.get('unit_measure', user.preferred_units),
+                    notes=gb_data.get('notes')
+                )
+                db.session.add(new_bed)
+                db.session.flush() # To get new_bed.id
+                if old_id is not None:
+                    garden_bed_id_map[old_id] = new_bed.id
+
+            # 5. Import Plantings
+            for p_data in imported_data.get("plantings", []):
+                old_plant_type_id = p_data.get('plant_type_id')
+                old_bed_id = p_data.get('bed_id')
+
+                new_plant_type_id = plant_type_id_map.get(old_plant_type_id)
+                new_bed_id = garden_bed_id_map.get(old_bed_id)
+
+                if new_plant_type_id is None or new_bed_id is None:
+                    logger.warning(f"Skipping planting due to missing mapped ID: old_plant_type_id={old_plant_type_id}, old_bed_id={old_bed_id}")
+                    continue
+
+                new_planting = Planting(
+                    plant_type_id=new_plant_type_id,
+                    bed_id=new_bed_id,
+                    date_planted=datetime.datetime.fromisoformat(p_data['date_planted']).date() if p_data.get('date_planted') else None, # Ensure date object
+                    notes=p_data.get('notes'),
+                    quantity=p_data.get('quantity', 1),
+                    expected_harvest_date=datetime.date.fromisoformat(p_data['projected_harvest_date']) if p_data.get('projected_harvest_date') else None, # Corrected name and parse as date
+                )
+                db.session.add(new_planting)
+
+            # 6. Import Garden Layout
+            logger.debug(f"Import: garden_bed_id_map = {garden_bed_id_map}") # Log bed ID map
+
+            layout_data = imported_data.get("garden_layout")
+            if layout_data and isinstance(layout_data.get('layout'), dict): # Check 'layout' key for the dict
+                actual_layout_content = layout_data.get('layout', {}) # Get the actual content
+                logger.debug(f"Import: Original actual_layout_content = {json.dumps(actual_layout_content)}")
+
+                # Attempt to update bed IDs within actual_layout_content
+                if 'beds' in actual_layout_content and isinstance(actual_layout_content['beds'], list):
+                    logger.debug(f"Import: Found 'beds' list in actual_layout_content. Processing {len(actual_layout_content['beds'])} items.")
+                    for bed_item in actual_layout_content['beds']:
+                        if isinstance(bed_item, dict) and 'id' in bed_item:
+                            old_bed_item_id = bed_item['id']
+                            logger.debug(f"Import: Processing bed_item with old_id = {old_bed_item_id}")
+                            if old_bed_item_id in garden_bed_id_map:
+                                bed_item['id'] = garden_bed_id_map[old_bed_item_id]
+                                logger.debug(f"Import: Updated bed_item id to {bed_item['id']}")
+                            else:
+                                logger.warning(f"Import: old_bed_item_id {old_bed_item_id} not found in garden_bed_id_map.")
+                else:
+                    logger.debug("Import: No 'beds' list found in actual_layout_content or it's not a list.")
+
+                logger.debug(f"Import: Modified actual_layout_content = {json.dumps(actual_layout_content)}")
+                
+                new_layout = GardenLayout(
+                    user_id=current_user_id,
+                    layout_json=json.dumps(actual_layout_content) # Save the modified content
+                )
+                db.session.add(new_layout)
+            elif layout_data:
+                logger.warning(f"Import: garden_layout data found, but 'layout' key is missing or not a dict. Data: {layout_data}")
+            else:
+                logger.debug("Import: No garden_layout data found in import file.")
+
+            db.session.commit()
+            return jsonify({"msg": "Data imported successfully"}), 200
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error during import: {e}") # Use logger.error here too
+            return jsonify({"msg": f"Error during import: {str(e)}"}), 500
+    else:
+        return jsonify({"msg": "Invalid file type. Please upload a .json file"}), 400
+
 
 if __name__ == '__main__':
     # Ensure app context is available for db operations if needed at startup

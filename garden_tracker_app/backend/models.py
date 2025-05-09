@@ -42,6 +42,17 @@ class User(db.Model):
         """Return the user ID as a string, as required by Flask-Login."""
         return str(self.id)
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'preferences': {
+                'preferred_units': self.preferred_units
+            },
+            'creation_date': self.creation_date.isoformat() if self.creation_date else None,
+            'last_login_at': self.last_login_at.isoformat() if self.last_login_at else None
+        }
+
 class GardenBed(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
