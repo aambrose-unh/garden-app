@@ -15,6 +15,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import { AppBar, Toolbar, Typography, Box, Button } from '@mui/material'; 
 import authService from './services/authService'; 
 import logo from './logo.svg';
+import SettingsPage from './pages/SettingsPage';
 import './App.css';
 
 function App() {
@@ -42,6 +43,9 @@ function App() {
                 </Button>
                 <Button color="inherit" component={Link} to="/layout">
                   Garden Layout
+                </Button>
+                <Button color="inherit" component={Link} to="/settings">
+                  Settings
                 </Button>
                 {/* Add Logout button here later */}
               </Box>
@@ -84,6 +88,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <GardenBedDetailsPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             } 
           />
