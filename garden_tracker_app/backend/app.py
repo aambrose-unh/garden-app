@@ -951,7 +951,17 @@ def import_user_data():
         try:
             # 1. Clear existing user-specific data (except PlantTypes which are global/shared)
             # Planting.query.filter_by(user_id=current_user_id).delete() # Incorrect
-            db.session.query(Planting).join(GardenBed, Planting.bed_id == GardenBed.id).filter(GardenBed.user_id == current_user_id).delete(synchronize_session=False)
+            # db.session.query(Planting).join(GardenBed, Planting.bed_id == GardenBed.id).filter(GardenBed.user_id == current_user_id).delete(synchronize_session=False) # Causes error with joined delete
+            # Fetch IDs of plantings to delete for the current user
+            planting_ids_to_delete = [
+                p.id for p in db.session.query(Planting.id)
+                .join(GardenBed, Planting.bed_id == GardenBed.id)
+                .filter(GardenBed.user_id == current_user_id)
+                .all()
+            ]
+            if planting_ids_to_delete:
+                Planting.query.filter(Planting.id.in_(planting_ids_to_delete)).delete(synchronize_session=False)
+
             GardenLayout.query.filter_by(user_id=current_user_id).delete()
             GardenBed.query.filter_by(user_id=current_user_id).delete()
             # db.session.commit() # Commit deletions
@@ -973,30 +983,20 @@ def import_user_data():
                 if plant_type:
                     # Update existing plant type if necessary
                     plant_type.scientific_name = pt_data.get('scientific_name', plant_type.scientific_name)
-                    plant_type.description = pt_data.get('description', plant_type.description)
-                    plant_type.image_url = pt_data.get('image_url', plant_type.image_url)
-                    plant_type.category = pt_data.get('category', plant_type.category)
-                    plant_type.sun_requirements = pt_data.get('sun_requirements', plant_type.sun_requirements)
-                    plant_type.water_requirements = pt_data.get('water_requirements', plant_type.water_requirements)
-                    plant_type.soil_preferences = pt_data.get('soil_preferences', plant_type.soil_preferences)
-                    plant_type.spacing_recommendations = pt_data.get('spacing_recommendations', plant_type.spacing_recommendations)
-                    plant_type.companion_plants = pt_data.get('companion_plants', plant_type.companion_plants)
-                    plant_type.avoid_plants = pt_data.get('avoid_plants', plant_type.avoid_plants)
-                    plant_type.planting_tips = pt_data.get('planting_tips', plant_type.planting_tips)
+                    plant_type.description = pt_data.get('description', plant_type.description) # Re-added this line
+                    plant_type.avg_height = pt_data.get('avg_height', plant_type.avg_height)
+                    plant_type.avg_spread = pt_data.get('avg_spread', plant_type.avg_spread)
+                    plant_type.rotation_family = pt_data.get('rotation_family', plant_type.rotation_family)
+                    plant_type.notes = pt_data.get('notes', plant_type.notes)
                 else:
                     plant_type = PlantType(
                         common_name=common_name,
                         scientific_name=pt_data.get('scientific_name'),
-                        description=pt_data.get('description'),
-                        image_url=pt_data.get('image_url'),
-                        category=pt_data.get('category'),
-                        sun_requirements=pt_data.get('sun_requirements'),
-                        water_requirements=pt_data.get('water_requirements'),
-                        soil_preferences=pt_data.get('soil_preferences'),
-                        spacing_recommendations=pt_data.get('spacing_recommendations'),
-                        companion_plants=pt_data.get('companion_plants'),
-                        avoid_plants=pt_data.get('avoid_plants'),
-                        planting_tips=pt_data.get('planting_tips')
+                        description=pt_data.get('description'), # Re-added this line
+                        avg_height=pt_data.get('avg_height'),
+                        avg_spread=pt_data.get('avg_spread'),
+                        rotation_family=pt_data.get('rotation_family'),
+                        notes=pt_data.get('notes')
                     )
                     db.session.add(plant_type)
                 db.session.flush() # To get new plant_type.id if it's new
@@ -1011,7 +1011,8 @@ def import_user_data():
                     user_id=current_user_id,
                     name=gb_data.get('name', 'Unnamed Bed'),
                     shape=gb_data.get('shape', 'rectangle'),
-                    shape_params=json.dumps(gb_data.get('shape_params', {})),
+                    shape_params=gb_data.get('shape_params', {}), # Pass dict directly for JSON field
+                    unit_measure=gb_data.get('unit_measure', user.preferred_units),
                     notes=gb_data.get('notes')
                 )
                 db.session.add(new_bed)
@@ -1028,48 +1029,60 @@ def import_user_data():
                 new_bed_id = garden_bed_id_map.get(old_bed_id)
 
                 if new_plant_type_id is None or new_bed_id is None:
-                    logging.warning(f"Skipping planting due to missing mapped ID: old_plant_type_id={old_plant_type_id}, old_bed_id={old_bed_id}")
+                    logger.warning(f"Skipping planting due to missing mapped ID: old_plant_type_id={old_plant_type_id}, old_bed_id={old_bed_id}")
                     continue
 
                 new_planting = Planting(
-                    user_id=current_user_id,
                     plant_type_id=new_plant_type_id,
                     bed_id=new_bed_id,
-                    date_planted=datetime.datetime.fromisoformat(p_data['date_planted']) if p_data.get('date_planted') else None,
+                    date_planted=datetime.datetime.fromisoformat(p_data['date_planted']).date() if p_data.get('date_planted') else None, # Ensure date object
                     notes=p_data.get('notes'),
                     quantity=p_data.get('quantity', 1),
-                    projected_harvest_date=datetime.datetime.fromisoformat(p_data['projected_harvest_date']) if p_data.get('projected_harvest_date') else None,
-                    x_coordinate=p_data.get('x_coordinate'),
-                    y_coordinate=p_data.get('y_coordinate')
+                    expected_harvest_date=datetime.date.fromisoformat(p_data['projected_harvest_date']) if p_data.get('projected_harvest_date') else None, # Corrected name and parse as date
                 )
                 db.session.add(new_planting)
 
             # 6. Import Garden Layout
+            logger.debug(f"Import: garden_bed_id_map = {garden_bed_id_map}") # Log bed ID map
+
             layout_data = imported_data.get("garden_layout")
-            if layout_data and isinstance(layout_data.get('layout_json'), dict):
-                raw_layout_json = layout_data['layout_json']
-                # Attempt to update bed IDs within layout_json
-                # This is a placeholder: assumes layout_json.beds is a list of dicts, each with an 'id'
-                if 'beds' in raw_layout_json and isinstance(raw_layout_json['beds'], list):
-                    for bed_item in raw_layout_json['beds']:
+            if layout_data and isinstance(layout_data.get('layout'), dict): # Check 'layout' key for the dict
+                actual_layout_content = layout_data.get('layout', {}) # Get the actual content
+                logger.debug(f"Import: Original actual_layout_content = {json.dumps(actual_layout_content)}")
+
+                # Attempt to update bed IDs within actual_layout_content
+                if 'beds' in actual_layout_content and isinstance(actual_layout_content['beds'], list):
+                    logger.debug(f"Import: Found 'beds' list in actual_layout_content. Processing {len(actual_layout_content['beds'])} items.")
+                    for bed_item in actual_layout_content['beds']:
                         if isinstance(bed_item, dict) and 'id' in bed_item:
                             old_bed_item_id = bed_item['id']
+                            logger.debug(f"Import: Processing bed_item with old_id = {old_bed_item_id}")
                             if old_bed_item_id in garden_bed_id_map:
                                 bed_item['id'] = garden_bed_id_map[old_bed_item_id]
+                                logger.debug(f"Import: Updated bed_item id to {bed_item['id']}")
+                            else:
+                                logger.warning(f"Import: old_bed_item_id {old_bed_item_id} not found in garden_bed_id_map.")
+                else:
+                    logger.debug("Import: No 'beds' list found in actual_layout_content or it's not a list.")
+
+                logger.debug(f"Import: Modified actual_layout_content = {json.dumps(actual_layout_content)}")
                 
                 new_layout = GardenLayout(
                     user_id=current_user_id,
-                    name=layout_data.get('name', 'Imported Layout'),
-                    layout_json=json.dumps(raw_layout_json)
+                    layout_json=json.dumps(actual_layout_content) # Save the modified content
                 )
                 db.session.add(new_layout)
+            elif layout_data:
+                logger.warning(f"Import: garden_layout data found, but 'layout' key is missing or not a dict. Data: {layout_data}")
+            else:
+                logger.debug("Import: No garden_layout data found in import file.")
 
             db.session.commit()
             return jsonify({"msg": "Data imported successfully"}), 200
 
         except Exception as e:
             db.session.rollback()
-            logging.error(f"Error during import: {e}")
+            logger.error(f"Error during import: {e}") # Use logger.error here too
             return jsonify({"msg": f"Error during import: {str(e)}"}), 500
     else:
         return jsonify({"msg": "Invalid file type. Please upload a .json file"}), 400
