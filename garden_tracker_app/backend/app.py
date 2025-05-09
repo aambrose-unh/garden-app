@@ -894,7 +894,8 @@ def export_user_data():
 
     plant_types = PlantType.query.all()
     garden_beds = GardenBed.query.filter_by(user_id=current_user_id).all()
-    plantings = Planting.query.filter_by(user_id=current_user_id).all()
+    # plantings = Planting.query.filter_by(user_id=current_user_id).all() # Incorrect: Planting has no direct user_id
+    plantings = db.session.query(Planting).join(GardenBed, Planting.bed_id == GardenBed.id).filter(GardenBed.user_id == current_user_id).all()
     garden_layout = GardenLayout.query.filter_by(user_id=current_user_id).first()
 
     export_data = {
@@ -949,7 +950,8 @@ def import_user_data():
         # For simplicity, direct db operations are shown. Consider wrapping in a transaction.
         try:
             # 1. Clear existing user-specific data (except PlantTypes which are global/shared)
-            Planting.query.filter_by(user_id=current_user_id).delete()
+            # Planting.query.filter_by(user_id=current_user_id).delete() # Incorrect
+            db.session.query(Planting).join(GardenBed, Planting.bed_id == GardenBed.id).filter(GardenBed.user_id == current_user_id).delete(synchronize_session=False)
             GardenLayout.query.filter_by(user_id=current_user_id).delete()
             GardenBed.query.filter_by(user_id=current_user_id).delete()
             # db.session.commit() # Commit deletions
