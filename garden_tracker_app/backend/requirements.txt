@@ -5,3 +5,12 @@ python-dotenv
 Werkzeug
 Flask-JWT-Extended
 Flask-CORS
+fastapi
+uvicorn[standard]
+SQLAlchemy
+python-multipart
+passlib[bcrypt]
+python-jose[cryptography]
+pydantic[email]
+alembic
+pydantic-settings
